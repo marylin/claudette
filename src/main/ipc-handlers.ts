@@ -6,6 +6,7 @@ import { listProjects, listSessions } from './session-manager'
 import { getSettings, updateSettings } from './settings'
 import { getGitStatus, getGitDiff, gitStage, gitUnstage, gitCommit } from './git-manager'
 import { listAgents, saveAgent, deleteAgent } from './agents-manager'
+import { getUsageData } from './usage-analyzer'
 import type { Agent, FileNode } from '../shared/types'
 
 const IGNORED_DIRS = new Set([
@@ -84,13 +85,9 @@ export function registerIpcHandlers(ipcMain: IpcMain): void {
     fs.writeFileSync(mdPath, content, 'utf-8')
   })
 
-  // Usage (stub for Phase 0.3)
+  // Usage
   ipcMain.handle('usage:get', () => {
-    return {
-      daily: [],
-      total: { inputTokens: 0, outputTokens: 0, cost: 0, sessions: 0 },
-      byModel: {},
-    }
+    return getUsageData()
   })
 
   // Settings
