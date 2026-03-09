@@ -4,7 +4,7 @@ import path from 'path'
 import { sendMessage, stopClaude } from './claude-bridge'
 import { listProjects, listSessions } from './session-manager'
 import { getSettings, updateSettings } from './settings'
-import { getGitStatus, getGitDiff, gitStage, gitUnstage, gitCommit } from './git-manager'
+import { getGitStatus, getGitDiff, gitStage, gitUnstage, gitCommit, getGitRemoteUrl, getGitLog } from './git-manager'
 import { listAgents, saveAgent, deleteAgent } from './agents-manager'
 import { getUsageData } from './usage-analyzer'
 import { listMcpServers, addMcpServer, removeMcpServer, toggleMcpServer } from './mcp-manager'
@@ -61,6 +61,12 @@ export function registerIpcHandlers(ipcMain: IpcMain): void {
   })
   ipcMain.handle('git:commit', (_event, projectPath: string, message: string) => {
     return gitCommit(projectPath, message)
+  })
+  ipcMain.handle('git:remote-url', (_event, projectPath: string) => {
+    return getGitRemoteUrl(projectPath)
+  })
+  ipcMain.handle('git:log', (_event, projectPath: string, count?: number) => {
+    return getGitLog(projectPath, count)
   })
 
   // Agents

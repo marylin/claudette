@@ -1,4 +1,5 @@
-import { Terminal, Settings } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Terminal, Settings, Github } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useAppStore } from '../../store/app.store'
 
@@ -8,6 +9,15 @@ export function StatusBar() {
   const terminalVisible = useAppStore((s) => s.terminalVisible)
   const toggleTerminal = useAppStore((s) => s.toggleTerminal)
   const setSettingsOpen = useAppStore((s) => s.setSettingsOpen)
+  const [repoUrl, setRepoUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (activeProject) {
+      window.electronAPI.getGitRemoteUrl(activeProject.path).then(setRepoUrl)
+    } else {
+      setRepoUrl(null)
+    }
+  }, [activeProject])
 
   const statusColor = {
     idle: 'bg-text-muted',
@@ -36,8 +46,17 @@ export function StatusBar() {
         )}
       </div>
 
-      {/* Right: Branch + Terminal toggle */}
+      {/* Right: GitHub + Terminal toggle */}
       <div className="flex items-center gap-3">
+        {repoUrl && (
+          <button
+            onClick={() => window.open(repoUrl, '_blank')}
+            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-text-muted hover:text-text-secondary transition-colors"
+            title="Open on GitHub"
+          >
+            <Github className="w-3 h-3" />
+          </button>
+        )}
         <button
           onClick={toggleTerminal}
           className={clsx(

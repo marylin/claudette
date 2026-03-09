@@ -31,6 +31,8 @@ const electronAPI = {
   gitStage: (projectPath: string, files: string[]) => ipcRenderer.invoke('git:stage', projectPath, files),
   gitUnstage: (projectPath: string, files: string[]) => ipcRenderer.invoke('git:unstage', projectPath, files),
   gitCommit: (projectPath: string, message: string) => ipcRenderer.invoke('git:commit', projectPath, message),
+  getGitRemoteUrl: (projectPath: string) => ipcRenderer.invoke('git:remote-url', projectPath),
+  getGitLog: (projectPath: string, count?: number) => ipcRenderer.invoke('git:log', projectPath, count),
 
   // Agents
   listAgents: () => ipcRenderer.invoke('agents:list'),

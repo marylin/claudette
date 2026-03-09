@@ -85,3 +85,38 @@ export async function gitCommit(projectPath: string, message: string): Promise<v
   const git = getGit(projectPath)
   await git.commit(message)
 }
+
+export async function getGitRemoteUrl(projectPath: string): Promise<string | null> {
+  try {
+    const git = getGit(projectPath)
+    const remotes = await git.getRemotes(true)
+    const origin = remotes.find((r) => r.name === 'origin')
+    if (!origin?.refs?.push) return null
+
+    let url = origin.refs.push
+    // Convert SSH URL to HTTPS
+    if (url.startsWith('git@github.com:')) {
+      url = url.replace('git@github.com:', 'https://github.com/').replace(/\.git$/, '')
+    } else if (url.endsWith('.git')) {
+      url = url.replace(/\.git$/, '')
+    }
+    return url
+  } catch {
+    return null
+  }
+}
+
+export async function getGitLog(projectPath: string, count = 10): Promise<Array<{ hash: string; message: string; date: string; author: string }>> {
+  try {
+    const git = getGit(projectPath)
+    const log = await git.log({ maxCount: count })
+    return log.all.map((entry) => ({
+      hash: entry.hash.slice(0, 7),
+      message: entry.message,
+      date: entry.date,
+      author: entry.author_name,
+    }))
+  } catch {
+    return []
+  }
+}
