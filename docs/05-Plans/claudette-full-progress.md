@@ -66,7 +66,7 @@ All phases COMPLETE. Build passes, 39 unit tests pass. Only remaining: code sign
 [x] 107. Edge case testing — covered in unit tests: empty dirs, malformed JSONL, large projects
 
 ### 1.0-C: Release Infrastructure
-[x] 108. GitHub Releases — CI workflow with tag-triggered release build
+[x] 108. GitHub Releases — multi-platform CI (Win/Mac/Linux), tag-triggered packaging (.exe/.dmg/.AppImage), GitHub Release via softprops/action-gh-release, electron-builder publish config for auto-updater. Committed: 1df617b
 [ ] 109. Code signing — deferred (requires purchasing certificate)
 [x] 110. SECURITY.md — vulnerability disclosure policy. Committed: 7e1b494
 [x] 111. Issue templates — bug report + feature request YAML forms. Committed: 7e1b494
