@@ -9,12 +9,17 @@ const electronAPI = {
   onClaudeOutput: (callback: (data: { text: string; type: 'stdout' | 'stderr' | 'system' }) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, data: { text: string; type: 'stdout' | 'stderr' | 'system' }) => callback(data)
     ipcRenderer.on('claude:output', listener)
-    return () => ipcRenderer.removeListener('claude:output', listener)
+    return () => { ipcRenderer.removeListener('claude:output', listener) }
   },
   onClaudeStatus: (callback: (data: { status: string; message?: string }) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, data: { status: string; message?: string }) => callback(data)
     ipcRenderer.on('claude:status', listener)
-    return () => ipcRenderer.removeListener('claude:status', listener)
+    return () => { ipcRenderer.removeListener('claude:status', listener) }
+  },
+  onClaudeCommand: (callback: (data: { action: string }) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, data: { action: string }) => callback(data)
+    ipcRenderer.on('claude:command', listener)
+    return () => { ipcRenderer.removeListener('claude:command', listener) }
   },
 
   // Projects
@@ -41,8 +46,8 @@ const electronAPI = {
   runAgent: (agentId: string, prompt: string) => ipcRenderer.invoke('agents:run', agentId, prompt),
 
   // CLAUDE.md
-  readClaudeMd: (projectPath: string) => ipcRenderer.invoke('claude-md:read', projectPath),
-  writeClaudeMd: (projectPath: string, content: string) => ipcRenderer.invoke('claude-md:write', projectPath, content),
+  readClaudeMd: (projectPath: string, scope?: string) => ipcRenderer.invoke('claude-md:read', projectPath, scope),
+  writeClaudeMd: (projectPath: string, content: string, scope?: string) => ipcRenderer.invoke('claude-md:write', projectPath, content, scope),
 
   // Templates
   listTemplates: () => ipcRenderer.invoke('templates:list'),
@@ -78,7 +83,7 @@ const electronAPI = {
   onUpdateStatus: (callback: (status: any) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, status: any) => callback(status)
     ipcRenderer.on('updater:status', listener)
-    return () => ipcRenderer.removeListener('updater:status', listener)
+    return () => { ipcRenderer.removeListener('updater:status', listener) }
   },
 
   // Usage
@@ -88,10 +93,62 @@ const electronAPI = {
   getSettings: () => ipcRenderer.invoke('settings:get'),
   setSettings: (settings: Record<string, unknown>) => ipcRenderer.invoke('settings:set', settings),
 
+  // Project management
+  getCurrentProject: () => ipcRenderer.invoke('project:get-current'),
+  getRecentProjects: () => ipcRenderer.invoke('project:get-recent'),
+  setCurrentProject: (projectPath: string) => ipcRenderer.invoke('project:set-current', projectPath),
+  onProjectChanged: (callback: (data: { path: string }) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, data: { path: string }) => callback(data)
+    ipcRenderer.on('project:changed', listener)
+    return () => { ipcRenderer.removeListener('project:changed', listener) }
+  },
+
   // File system
   readDir: (dirPath: string) => ipcRenderer.invoke('fs:readdir', dirPath),
   readFile: (filePath: string) => ipcRenderer.invoke('fs:readfile', filePath),
   openFolder: () => ipcRenderer.invoke('dialog:open-folder'),
+  onTreeUpdated: (callback: () => void) => {
+    const listener = () => callback()
+    ipcRenderer.on('fs:tree-updated', listener)
+    return () => { ipcRenderer.removeListener('fs:tree-updated', listener) }
+  },
+
+  // Git auto-refresh
+  onGitStatusUpdated: (callback: () => void) => {
+    const listener = () => callback()
+    ipcRenderer.on('git:status-updated', listener)
+    return () => { ipcRenderer.removeListener('git:status-updated', listener) }
+  },
+
+  // CLAUDE.md watching
+  watchClaudeMd: (projectPath: string) => ipcRenderer.invoke('claude-md:watch', projectPath),
+  onClaudeMdChanged: (callback: () => void) => {
+    const listener = () => callback()
+    ipcRenderer.on('claude-md:changed', listener)
+    return () => { ipcRenderer.removeListener('claude-md:changed', listener) }
+  },
+
+  // Terminal PTY
+  startTerminal: (cols: number, rows: number, projectPath?: string) =>
+    ipcRenderer.invoke('terminal:start', cols, rows, projectPath),
+  sendTerminalInput: (data: string) => ipcRenderer.invoke('terminal:input', data),
+  resizeTerminal: (cols: number, rows: number) => ipcRenderer.invoke('terminal:resize', cols, rows),
+  killTerminal: () => ipcRenderer.invoke('terminal:kill'),
+  onTerminalData: (callback: (data: { data: string }) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, data: { data: string }) => callback(data)
+    ipcRenderer.on('terminal:data', listener)
+    return () => { ipcRenderer.removeListener('terminal:data', listener) }
+  },
+  onTerminalExited: (callback: (data: { exitCode: number }) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, data: { exitCode: number }) => callback(data)
+    ipcRenderer.on('terminal:exited', listener)
+    return () => { ipcRenderer.removeListener('terminal:exited', listener) }
+  },
+  onTerminalError: (callback: (data: { message: string }) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, data: { message: string }) => callback(data)
+    ipcRenderer.on('terminal:error', listener)
+    return () => { ipcRenderer.removeListener('terminal:error', listener) }
+  },
 
   // Window controls
   minimizeWindow: () => ipcRenderer.invoke('window:minimize'),
@@ -101,7 +158,7 @@ const electronAPI = {
   onMaximizeChange: (callback: (maximized: boolean) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, maximized: boolean) => callback(maximized)
     ipcRenderer.on('window:maximize-change', listener)
-    return () => ipcRenderer.removeListener('window:maximize-change', listener)
+    return () => { ipcRenderer.removeListener('window:maximize-change', listener) }
   },
 }
 

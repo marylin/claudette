@@ -1,17 +1,21 @@
-import { IpcMain, dialog } from 'electron'
+import { IpcMain, app, dialog } from 'electron'
 import fs from 'fs'
 import path from 'path'
 import { sendMessage, stopClaude } from './claude-bridge'
-import { listProjects, listSessions } from './session-manager'
+import { listProjects, listSessions, deleteSession } from './session-manager'
 import { getSettings, updateSettings } from './settings'
 import { getGitStatus, getGitDiff, gitStage, gitUnstage, gitCommit, getGitRemoteUrl, getGitLog } from './git-manager'
-import { listAgents, saveAgent, deleteAgent } from './agents-manager'
+import { listAgents, saveAgent, deleteAgent, getAgent } from './agents-manager'
 import { getUsageData } from './usage-analyzer'
 import { listMcpServers, addMcpServer, removeMcpServer, toggleMcpServer } from './mcp-manager'
 import { listTemplates, saveTemplate, deleteTemplate, resolveTemplate } from './template-manager'
 import { checkForUpdates, downloadUpdate, installUpdate, getUpdateStatus } from './auto-updater'
 import { listWorkspaces, createWorkspace, updateWorkspace, deleteWorkspace, addProjectToWorkspace, removeProjectFromWorkspace } from './workspace-manager'
-import { listCheckpoints, createCheckpoint, deleteCheckpoint, getCheckpoint } from './checkpoint-manager'
+import { listCheckpoints, createCheckpoint, deleteCheckpoint, getCheckpoint, deleteCheckpointsForSession } from './checkpoint-manager'
+import { getRecentProjects, getLastProject, addRecentProject, setLastProject } from './config-manager'
+import { startWatching, stopWatching, watchFile } from './fs-watcher'
+import { spawnShell, writeToPty, resizePty, dispose as disposePty, setProject as setPtyProject } from './pty-manager'
+import { getMainWindow } from './index'
 import type { Agent, FileNode, Workspace } from '../shared/types'
 
 const IGNORED_DIRS = new Set([
@@ -39,12 +43,13 @@ export function registerIpcHandlers(ipcMain: IpcMain): void {
     return listSessions(projectPath)
   })
 
-  ipcMain.handle('sessions:resume', (_event, _sessionId: string) => {
-    // Resume is handled via claude:send with sessionId
+  ipcMain.handle('sessions:resume', (_event, sessionId: string) => {
+    sendMessage('Continue where we left off.', sessionId)
   })
 
-  ipcMain.handle('sessions:delete', (_event, _sessionId: string) => {
-    // TODO: implement session deletion
+  ipcMain.handle('sessions:delete', (_event, sessionId: string) => {
+    deleteCheckpointsForSession(sessionId)
+    return deleteSession(sessionId)
   })
 
   // Git (stubs for Phase 0.2)
@@ -76,11 +81,18 @@ export function registerIpcHandlers(ipcMain: IpcMain): void {
   ipcMain.handle('agents:list', () => listAgents())
   ipcMain.handle('agents:save', (_event, agent: Agent) => saveAgent(agent))
   ipcMain.handle('agents:delete', (_event, agentId: string) => deleteAgent(agentId))
-  ipcMain.handle('agents:run', (_event, _agentId: string, _prompt: string) => {})
+  ipcMain.handle('agents:run', (_event, agentId: string, prompt: string) => {
+    const agent = getAgent(agentId)
+    if (!agent) throw new Error(`Agent not found: ${agentId}`)
+    const fullMessage = `${agent.systemPrompt}\n\n---\n\n${prompt}`
+    sendMessage(fullMessage)
+  })
 
-  // CLAUDE.md
-  ipcMain.handle('claude-md:read', (_event, projectPath: string) => {
-    const mdPath = path.join(projectPath, 'CLAUDE.md')
+  // CLAUDE.md — supports 'project' and 'global' scope
+  ipcMain.handle('claude-md:read', (_event, projectPath: string, scope?: string) => {
+    const mdPath = scope === 'global'
+      ? path.join(app.getPath('home'), '.claude', 'CLAUDE.md')
+      : path.join(projectPath, 'CLAUDE.md')
     try {
       if (fs.existsSync(mdPath)) {
         return fs.readFileSync(mdPath, 'utf-8')
@@ -91,8 +103,12 @@ export function registerIpcHandlers(ipcMain: IpcMain): void {
     }
   })
 
-  ipcMain.handle('claude-md:write', (_event, projectPath: string, content: string) => {
-    const mdPath = path.join(projectPath, 'CLAUDE.md')
+  ipcMain.handle('claude-md:write', (_event, projectPath: string, content: string, scope?: string) => {
+    const mdPath = scope === 'global'
+      ? path.join(app.getPath('home'), '.claude', 'CLAUDE.md')
+      : path.join(projectPath, 'CLAUDE.md')
+    const dir = path.dirname(mdPath)
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
     fs.writeFileSync(mdPath, content, 'utf-8')
   })
 
@@ -152,6 +168,50 @@ export function registerIpcHandlers(ipcMain: IpcMain): void {
   ipcMain.handle('updater:download', () => downloadUpdate())
   ipcMain.handle('updater:install', () => installUpdate())
   ipcMain.handle('updater:status', () => getUpdateStatus())
+
+  // Terminal PTY
+  ipcMain.handle('terminal:start', (_event, cols: number, rows: number, projectPath?: string) => {
+    const cwd = projectPath || getLastProject() || process.cwd()
+    return spawnShell(cwd, cols, rows)
+  })
+  ipcMain.handle('terminal:input', (_event, data: string) => {
+    writeToPty(data)
+  })
+  ipcMain.handle('terminal:resize', (_event, cols: number, rows: number) => {
+    resizePty(cols, rows)
+  })
+  ipcMain.handle('terminal:kill', () => {
+    disposePty()
+  })
+
+  // Project management
+  ipcMain.handle('project:get-current', () => getLastProject())
+  ipcMain.handle('project:get-recent', () => getRecentProjects())
+  ipcMain.handle('project:set-current', (_event, projectPath: string) => {
+    addRecentProject(projectPath)
+    setLastProject(projectPath)
+    startWatching(projectPath)
+    setPtyProject(projectPath)
+    const win = getMainWindow()
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('project:changed', { path: projectPath })
+    }
+  })
+
+  // CLAUDE.md file watching
+  let claudeMdUnwatch: (() => void) | null = null
+  ipcMain.handle('claude-md:watch', (_event, projectPath: string) => {
+    if (claudeMdUnwatch) claudeMdUnwatch()
+    const mdPath = path.join(projectPath, 'CLAUDE.md')
+    if (fs.existsSync(mdPath)) {
+      claudeMdUnwatch = watchFile(mdPath, () => {
+        const win = getMainWindow()
+        if (win && !win.isDestroyed()) {
+          win.webContents.send('claude-md:changed')
+        }
+      })
+    }
+  })
 
   // File system
   ipcMain.handle('fs:readdir', (_event, dirPath: string) => {

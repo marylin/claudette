@@ -1,7 +1,10 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import path from 'path'
+import fs from 'fs'
 import { registerIpcHandlers } from './ipc-handlers'
 import { initAutoUpdater } from './auto-updater'
+import { getLastProject } from './config-manager'
+import { startWatching, stopWatching } from './fs-watcher'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -48,6 +51,13 @@ function createWindow() {
 
   mainWindow.once('ready-to-show', () => {
     mainWindow?.show()
+
+    // Restore last project
+    const lastProject = getLastProject()
+    if (lastProject && fs.existsSync(lastProject)) {
+      startWatching(lastProject)
+      mainWindow?.webContents.send('project:changed', { path: lastProject })
+    }
   })
 
   mainWindow.on('closed', () => {
@@ -70,6 +80,7 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
+  stopWatching()
   if (process.platform !== 'darwin') {
     app.quit()
   }

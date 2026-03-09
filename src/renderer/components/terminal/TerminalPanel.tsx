@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { X } from 'lucide-react'
+import { X, RotateCcw } from 'lucide-react'
 import { useAppStore } from '../../store/app.store'
 import { ResizeHandle } from '../shared/ResizeHandle'
 
@@ -8,12 +8,16 @@ export function TerminalPanel() {
   const terminalRef = useRef<any>(null)
   const fitAddonRef = useRef<any>(null)
   const [initialized, setInitialized] = useState(false)
+  const [connected, setConnected] = useState(false)
+  const [exited, setExited] = useState(false)
   const [height, setHeight] = useState(200)
   const setTerminalVisible = useAppStore((s) => s.setTerminalVisible)
+  const currentProject = useAppStore((s) => s.currentProject)
 
-  // Lazy load xterm.js
+  // Lazy load xterm.js + connect to PTY
   useEffect(() => {
     let mounted = true
+    const cleanups: (() => void)[] = []
 
     async function initTerminal() {
       if (terminalRef.current || !containerRef.current) return
@@ -26,10 +30,13 @@ export function TerminalPanel() {
         if (!mounted || !containerRef.current) return
 
         // Import xterm CSS
-        const link = document.createElement('link')
-        link.rel = 'stylesheet'
-        link.href = 'node_modules/@xterm/xterm/css/xterm.css'
-        document.head.appendChild(link)
+        if (!document.querySelector('link[data-xterm-css]')) {
+          const link = document.createElement('link')
+          link.rel = 'stylesheet'
+          link.href = 'node_modules/@xterm/xterm/css/xterm.css'
+          link.setAttribute('data-xterm-css', 'true')
+          document.head.appendChild(link)
+        }
 
         const fitAddon = new FitAddon()
         fitAddonRef.current = fitAddon
@@ -71,12 +78,47 @@ export function TerminalPanel() {
         terminal.open(containerRef.current)
         fitAddon.fit()
 
-        terminal.writeln('\x1b[38;2;124;106;247m  Claudette Terminal\x1b[0m')
-        terminal.writeln('\x1b[38;2;75;82;99m  Type commands or use the chat panel above.\x1b[0m')
-        terminal.writeln('')
-
         terminalRef.current = terminal
         setInitialized(true)
+
+        // Forward keystrokes to PTY
+        terminal.onData((data: string) => {
+          window.electronAPI.sendTerminalInput?.(data)
+        })
+
+        // Receive PTY output
+        const cleanupData = window.electronAPI.onTerminalData?.((payload) => {
+          terminal.write(payload.data)
+        })
+        if (cleanupData) cleanups.push(cleanupData)
+
+        // Handle PTY exit
+        const cleanupExit = window.electronAPI.onTerminalExited?.(() => {
+          setConnected(false)
+          setExited(true)
+          terminal.writeln('')
+          terminal.writeln('\x1b[38;2;248;113;113m  Shell exited. Press the restart button to relaunch.\x1b[0m')
+        })
+        if (cleanupExit) cleanups.push(cleanupExit)
+
+        // Handle PTY errors
+        const cleanupError = window.electronAPI.onTerminalError?.((payload) => {
+          terminal.writeln('')
+          terminal.writeln(`\x1b[38;2;248;113;113m  ${payload.message}\x1b[0m`)
+        })
+        if (cleanupError) cleanups.push(cleanupError)
+
+        // Start PTY
+        const cols = terminal.cols
+        const rows = terminal.rows
+        const success = await window.electronAPI.startTerminal?.(cols, rows, currentProject || undefined)
+        if (success) {
+          setConnected(true)
+          setExited(false)
+        } else {
+          terminal.writeln('\x1b[38;2;124;106;247m  Claudette Terminal\x1b[0m')
+          terminal.writeln('\x1b[38;2;75;82;99m  Terminal unavailable — node-pty not loaded.\x1b[0m')
+        }
       } catch (err) {
         console.error('Failed to initialize terminal:', err)
       }
@@ -86,25 +128,44 @@ export function TerminalPanel() {
 
     return () => {
       mounted = false
+      cleanups.forEach((fn) => fn())
       terminalRef.current?.dispose()
       terminalRef.current = null
+      window.electronAPI.killTerminal?.()
     }
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Resize terminal on container size change
   useEffect(() => {
     if (fitAddonRef.current && initialized) {
       try {
         fitAddonRef.current.fit()
+        if (connected && terminalRef.current) {
+          const { cols, rows } = terminalRef.current
+          window.electronAPI.resizeTerminal?.(cols, rows)
+        }
       } catch {
         // ignore fit errors during transitions
       }
     }
-  }, [height, initialized])
+  }, [height, initialized, connected])
 
   const handleResize = useCallback((delta: number) => {
     setHeight((h) => Math.max(100, Math.min(600, h - delta)))
   }, [])
+
+  const handleRestart = useCallback(async () => {
+    if (!terminalRef.current) return
+    const terminal = terminalRef.current
+    terminal.clear()
+    setExited(false)
+    const cols = terminal.cols
+    const rows = terminal.rows
+    const success = await window.electronAPI.startTerminal?.(cols, rows, currentProject || undefined)
+    if (success) {
+      setConnected(true)
+    }
+  }, [currentProject])
 
   return (
     <div style={{ height }}>
@@ -114,8 +175,20 @@ export function TerminalPanel() {
       <div className="h-7 px-3 flex items-center justify-between bg-bg-surface">
         <span className="text-2xs text-text-muted font-medium uppercase tracking-wider">Terminal</span>
         <div className="flex items-center gap-1">
+          {exited && (
+            <button
+              onClick={handleRestart}
+              className="w-5 h-5 flex items-center justify-center text-text-muted hover:text-text-primary rounded transition-colors"
+              aria-label="Restart terminal"
+            >
+              <RotateCcw className="w-3 h-3" />
+            </button>
+          )}
           <button
-            onClick={() => setTerminalVisible(false)}
+            onClick={() => {
+              window.electronAPI.killTerminal?.()
+              setTerminalVisible(false)
+            }}
             className="w-5 h-5 flex items-center justify-center text-text-muted hover:text-text-primary rounded transition-colors"
             aria-label="Close terminal"
           >
