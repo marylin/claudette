@@ -33,7 +33,6 @@ const LOCAL_COMMANDS: Record<string, LocalCommandHandler> = {
   }),
 }
 
-// Slash commands mapped to CLI subcommands/flags
 interface CliCommandMapping {
   args: string[]
   useStreamJson?: boolean
@@ -55,7 +54,6 @@ export function sendMessage(message: string, sessionId?: string): void {
   const trimmed = message.trim()
   const commandName = trimmed.split(/\s/)[0].toLowerCase()
 
-  // Local-only commands
   if (LOCAL_COMMANDS[commandName]) {
     const result = LOCAL_COMMANDS[commandName]()
     updateStatus({ status: 'running' })
@@ -106,18 +104,32 @@ export function sendMessage(message: string, sessionId?: string): void {
 }
 
 function spawnClaude(claudePath: string, args: string[], parseJson: boolean): void {
-  // Clean environment: remove CLAUDECODE to prevent "nested session" error
+  // Clean environment to prevent "nested session" rejection
   const cleanEnv = { ...process.env }
   delete cleanEnv.CLAUDECODE
   delete cleanEnv.CLAUDE_CODE_ENTRYPOINT
 
-  // Use shell: true so Node handles .cmd resolution on Windows
-  claudeProcess = spawn(claudePath, args, {
-    stdio: ['pipe', 'pipe', 'pipe'],
-    shell: true,
-    windowsHide: true,
-    env: cleanEnv,
-  })
+  const isWin = process.platform === 'win32'
+
+  if (isWin) {
+    // On Windows, quote args with spaces for cmd.exe, then use
+    // /s /c with windowsVerbatimArguments to pass the command line exactly
+    const quoted = args.map((a) => (a.includes(' ') ? `"${a}"` : a))
+    const cmdLine = `${claudePath} ${quoted.join(' ')}`
+    console.log('[claude-bridge] spawn:', cmdLine)
+    claudeProcess = spawn('cmd.exe', ['/s', '/c', `"${cmdLine}"`], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      windowsHide: true,
+      env: cleanEnv,
+      windowsVerbatimArguments: true,
+    })
+  } else {
+    console.log('[claude-bridge] spawn:', claudePath, args.join(' '))
+    claudeProcess = spawn(claudePath, args, {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: cleanEnv,
+    })
+  }
 
   updateStatus({ status: 'running' })
 
@@ -125,21 +137,20 @@ function spawnClaude(claudePath: string, args: string[], parseJson: boolean): vo
   let emittedTextLength = 0
   let seenToolIds = new Set<string>()
   let lineBuffer = ''
-  let gotAnyOutput = false
 
-  // Use raw data events instead of readline for lower latency
+  // Raw data events for lowest latency
   claudeProcess.stdout!.on('data', (chunk: Buffer) => {
-    lineBuffer += chunk.toString()
+    const text = chunk.toString()
+    console.log('[claude-bridge] stdout chunk:', text.length, 'bytes')
+    lineBuffer += text
 
-    // Process all complete lines
     const parts = lineBuffer.split('\n')
-    lineBuffer = parts.pop()! // keep incomplete last line
+    lineBuffer = parts.pop()!
 
     for (const rawLine of parts) {
       const line = rawLine.trim()
       if (!line) continue
-
-      gotAnyOutput = true
+      console.log('[claude-bridge] line:', line.slice(0, 200))
 
       if (parseJson) {
         let parsed: any = null
@@ -150,16 +161,14 @@ function spawnClaude(claudePath: string, args: string[], parseJson: boolean): vo
         }
 
         if (parsed && typeof parsed === 'object') {
-          // --- Handle stream-json events ---
           const type = parsed.type
 
-          // system init → capture session ID
           if (type === 'system' && parsed.session_id) {
             currentSessionId = parsed.session_id
+            console.log('[claude-bridge] session:', currentSessionId)
             continue
           }
 
-          // assistant → extract text content
           if (type === 'assistant') {
             const content = parsed.message?.content
             if (Array.isArray(content)) {
@@ -181,27 +190,24 @@ function spawnClaude(claudePath: string, args: string[], parseJson: boolean): vo
               }
               continue
             }
-            // content might be a string directly
             if (typeof parsed.message?.content === 'string') {
-              const text = parsed.message.content
-              if (text.length > emittedTextLength) {
-                sendOutput(text.slice(emittedTextLength), 'stdout')
-                emittedTextLength = text.length
+              const t = parsed.message.content
+              if (t.length > emittedTextLength) {
+                sendOutput(t.slice(emittedTextLength), 'stdout')
+                emittedTextLength = t.length
               }
               continue
             }
           }
 
-          // content_block_delta → incremental text (API-style events)
+          // content_block_delta (API-style streaming)
           if (type === 'content_block_delta' && parsed.delta?.text) {
             sendOutput(parsed.delta.text, 'stdout')
             continue
           }
 
-          // result → final output
           if (type === 'result') {
             if (parsed.session_id) currentSessionId = parsed.session_id
-            // If we never got assistant events, emit the result text
             if (emittedTextLength === 0 && parsed.result && typeof parsed.result === 'string') {
               sendOutput(parsed.result, 'stdout')
             }
@@ -211,13 +217,14 @@ function spawnClaude(claudePath: string, args: string[], parseJson: boolean): vo
             continue
           }
 
-          // Unrecognized JSON event — show it as raw text so user always sees something
+          // Unrecognized JSON — show raw so user always sees something
+          console.log('[claude-bridge] unrecognized event type:', type)
           sendOutput(line, 'stdout')
           continue
         }
       }
 
-      // Raw text line (not JSON, or not in JSON mode)
+      // Raw text
       if (isPermissionPrompt(line)) {
         updateStatus({ status: 'waiting-permission', message: line })
         sendOutput(line, 'system')
@@ -230,18 +237,19 @@ function spawnClaude(claudePath: string, args: string[], parseJson: boolean): vo
   claudeProcess.stderr!.on('data', (chunk: Buffer) => {
     const text = chunk.toString().trim()
     if (text) {
+      console.log('[claude-bridge] stderr:', text)
       sendOutput(text, 'stderr')
     }
   })
 
   claudeProcess.on('close', (code) => {
-    // Flush remaining buffer
+    console.log('[claude-bridge] process exited, code:', code)
     const remaining = lineBuffer.trim()
     if (remaining) {
+      console.log('[claude-bridge] flushing remaining:', remaining.slice(0, 200))
       sendOutput(remaining, 'stdout')
     }
     lineBuffer = ''
-
     claudeProcess = null
     updateStatus({
       status: code === 0 ? 'idle' : 'error',
@@ -250,6 +258,7 @@ function spawnClaude(claudePath: string, args: string[], parseJson: boolean): vo
   })
 
   claudeProcess.on('error', (err) => {
+    console.log('[claude-bridge] spawn error:', err.message)
     claudeProcess = null
     updateStatus({ status: 'error', message: err.message })
     sendOutput(`Error: ${err.message}`, 'system')
