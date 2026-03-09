@@ -17,7 +17,8 @@
     "dist:mac": "npm run build && electron-builder --mac",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "npm run build && npx playwright test"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.6.0",
@@ -47,6 +48,7 @@
     "zustand": "^4.5.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@types/node": "^20.14.0",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
