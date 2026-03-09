@@ -7,7 +7,74 @@ import type { ClaudeStatus } from '../shared/types'
 let claudeProcess: ChildProcess | null = null
 let currentStatus: ClaudeStatus = { status: 'idle' }
 
+// Slash commands handled entirely in the app (never sent to CLI)
+type LocalCommandHandler = () => { output: string; action?: 'clear' }
+
+const LOCAL_COMMANDS: Record<string, LocalCommandHandler> = {
+  '/clear': () => ({ output: 'Conversation cleared.', action: 'clear' }),
+  '/help': () => ({
+    output: [
+      '**Available Commands**',
+      '',
+      '`/clear` — Clear conversation history',
+      '`/help` — Show this help',
+      '`/cost` — Show token usage and cost',
+      '`/status` — Show project status',
+      '`/config` — Show current configuration',
+      '`/doctor` — Check Claude Code health',
+      '`/compact` — Compact conversation context',
+      '`/review` — Review code changes',
+      '`/test` — Run project tests',
+      '`/commit` — Commit staged changes',
+      '`/init` — Initialize CLAUDE.md',
+      '`/login` — Switch account or log in',
+      '`/logout` — Log out',
+    ].join('\n'),
+  }),
+}
+
+// Slash commands mapped to CLI subcommands/flags (spawned differently than -p)
+interface CliCommandMapping {
+  args: string[]  // CLI arguments to use instead of -p
+  needsProject?: boolean
+}
+
+const CLI_COMMANDS: Record<string, CliCommandMapping> = {
+  '/doctor':  { args: ['doctor'] },
+  '/config':  { args: ['config', 'list'] },
+  '/cost':    { args: ['-p', 'Show my token usage and cost for this session'] },
+  '/status':  { args: ['-p', 'Show a brief project status summary'] },
+  '/compact': { args: ['-p', 'Summarize our conversation so far in a compact form'] },
+  '/review':  { args: ['-p', 'Review the current code changes (git diff) and provide feedback'] },
+  '/test':    { args: ['-p', 'Run the project test suite and report results'] },
+  '/commit':  { args: ['-p', 'Stage and commit the current changes with an appropriate commit message'] },
+  '/init':    { args: ['-p', 'Initialize a CLAUDE.md file for this project with sensible defaults'] },
+}
+
 export function sendMessage(message: string, sessionId?: string): void {
+  const trimmed = message.trim()
+  const commandName = trimmed.split(/\s/)[0].toLowerCase()
+
+  // Check for local-only commands first
+  if (LOCAL_COMMANDS[commandName]) {
+    const result = LOCAL_COMMANDS[commandName]()
+    updateStatus({ status: 'running' })
+
+    if (result.action === 'clear') {
+      const win = getMainWindow()
+      if (win && !win.isDestroyed()) {
+        win.webContents.send('claude:command', { action: 'clear' })
+      }
+    }
+
+    sendOutput(result.output, 'stdout')
+    updateStatus({ status: 'idle' })
+    return
+  }
+
+  // Check for CLI-mapped commands
+  const cliMapping = CLI_COMMANDS[commandName]
+
   const settings = getSettings()
   const claudePath = settings.claudePath || 'claude'
 
@@ -15,18 +82,34 @@ export function sendMessage(message: string, sessionId?: string): void {
     stopClaude()
   }
 
-  const args: string[] = []
+  let args: string[]
 
-  if (settings.autoAcceptPermissions) {
-    args.push('--dangerously-skip-permissions')
+  if (cliMapping) {
+    // Use the mapped CLI arguments
+    args = [...cliMapping.args]
+    if (settings.autoAcceptPermissions) {
+      args.push('--dangerously-skip-permissions')
+    }
+  } else {
+    // Normal message: flags first, positional message last
+    args = ['-p']
+
+    if (settings.autoAcceptPermissions) {
+      args.push('--dangerously-skip-permissions')
+    }
+
+    if (sessionId) {
+      args.push('--resume', sessionId)
+    }
+
+    // Message goes as positional argument (after all flags)
+    args.push(trimmed)
   }
 
-  if (sessionId) {
-    args.push('--resume', sessionId)
-  }
+  spawnClaude(claudePath, args)
+}
 
-  args.push('--prompt', message)
-
+function spawnClaude(claudePath: string, args: string[]): void {
   const isWin = process.platform === 'win32'
 
   if (isWin) {

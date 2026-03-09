@@ -40,3 +40,7 @@ export function deleteAgent(agentId: string): void {
   const agents = readAgents().filter((a) => a.id !== agentId)
   writeAgents(agents)
 }
+
+export function getAgent(agentId: string): Agent | null {
+  return readAgents().find((a) => a.id === agentId) || null
+}

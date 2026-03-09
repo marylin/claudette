@@ -134,6 +134,26 @@ function parseSessionFile(filePath: string): Session | null {
   }
 }
 
+export function deleteSession(sessionId: string): boolean {
+  try {
+    if (!fs.existsSync(PROJECTS_DIR)) return false
+
+    const entries = fs.readdirSync(PROJECTS_DIR, { withFileTypes: true })
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue
+      const sessionFile = path.join(PROJECTS_DIR, entry.name, `${sessionId}.jsonl`)
+      if (fs.existsSync(sessionFile)) {
+        fs.unlinkSync(sessionFile)
+        return true
+      }
+    }
+    return false
+  } catch (err) {
+    console.error('Failed to delete session:', err)
+    return false
+  }
+}
+
 function decodeProjectDirName(encodedName: string): string {
   try {
     const decoded = decodeURIComponent(encodedName)
