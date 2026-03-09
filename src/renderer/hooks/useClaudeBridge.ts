@@ -38,7 +38,15 @@ export function useClaudeBridge() {
     flushTimerRef.current = null
   }, [addMessage, updateLastMessage])
 
+  const clearMessages = useSessionStore((s) => s.clearMessages)
+
   useEffect(() => {
+    const cleanupCommand = window.electronAPI.onClaudeCommand?.((data) => {
+      if (data.action === 'clear') {
+        clearMessages()
+      }
+    })
+
     const cleanupOutput = window.electronAPI.onClaudeOutput((data) => {
       if (data.type === 'system') {
         // Permission prompt or system message
@@ -88,13 +96,14 @@ export function useClaudeBridge() {
     })
 
     return () => {
+      cleanupCommand?.()
       cleanupOutput()
       cleanupStatus()
       if (flushTimerRef.current) {
         clearTimeout(flushTimerRef.current)
       }
     }
-  }, [addMessage, updateLastMessage, setIsStreaming, setClaudeStatus, flushBuffer])
+  }, [addMessage, updateLastMessage, setIsStreaming, setClaudeStatus, flushBuffer, clearMessages])
 
   const sendMessage = useCallback(
     (message: string) => {

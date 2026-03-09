@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react'
-import { FileCode, Search, Bookmark, Trash2, Plus, ChevronRight } from 'lucide-react'
+import { useState, useEffect, useMemo, useRef } from 'react'
+import { FileCode, Search, Bookmark, Trash2, Plus, ChevronRight, Terminal } from 'lucide-react'
 import { Button } from '../shared/Button'
 import { useToast } from '../shared/ToastProvider'
 
@@ -11,6 +11,25 @@ interface PromptTemplate {
   variables: string[]
   category: 'builtin' | 'custom'
 }
+
+// Claude Code CLI slash commands — sent as-is to the CLI
+const CLAUDE_COMMANDS = [
+  { id: 'cmd-help', name: '/help', description: 'Show available commands' },
+  { id: 'cmd-compact', name: '/compact', description: 'Compact conversation context' },
+  { id: 'cmd-clear', name: '/clear', description: 'Clear conversation history' },
+  { id: 'cmd-review', name: '/review', description: 'Review code changes' },
+  { id: 'cmd-test', name: '/test', description: 'Run project tests' },
+  { id: 'cmd-commit', name: '/commit', description: 'Commit staged changes' },
+  { id: 'cmd-init', name: '/init', description: 'Initialize CLAUDE.md for this project' },
+  { id: 'cmd-status', name: '/status', description: 'Show project status' },
+  { id: 'cmd-cost', name: '/cost', description: 'Show token usage and cost' },
+  { id: 'cmd-doctor', name: '/doctor', description: 'Check Claude Code health' },
+  { id: 'cmd-memory', name: '/memory', description: 'Show memory usage info' },
+  { id: 'cmd-config', name: '/config', description: 'Show current config' },
+  { id: 'cmd-bug', name: '/bug', description: 'Report a bug' },
+  { id: 'cmd-login', name: '/login', description: 'Switch account or log in' },
+  { id: 'cmd-logout', name: '/logout', description: 'Log out of current account' },
+]
 
 interface TemplatePickerProps {
   open: boolean
@@ -25,6 +44,7 @@ export function TemplatePicker({ open, onClose, onSelect }: TemplatePickerProps)
   const [variables, setVariables] = useState<Record<string, string>>({})
   const [showCreate, setShowCreate] = useState(false)
   const { toast } = useToast()
+  const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (open) {
@@ -35,6 +55,22 @@ export function TemplatePicker({ open, onClose, onSelect }: TemplatePickerProps)
     }
   }, [open])
 
+  // Close on click outside
+  useEffect(() => {
+    if (!open) return
+    const handleClick = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        onClose()
+      }
+    }
+    // Delay to avoid closing from the same click that opened it
+    const timer = setTimeout(() => document.addEventListener('mousedown', handleClick), 0)
+    return () => {
+      clearTimeout(timer)
+      document.removeEventListener('mousedown', handleClick)
+    }
+  }, [open, onClose])
+
   const filtered = useMemo(() => {
     if (!search.trim()) return templates
     const q = search.toLowerCase()
@@ -42,6 +78,14 @@ export function TemplatePicker({ open, onClose, onSelect }: TemplatePickerProps)
       (t) => t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q)
     )
   }, [templates, search])
+
+  const filteredCommands = useMemo(() => {
+    if (!search.trim()) return CLAUDE_COMMANDS
+    const q = search.toLowerCase()
+    return CLAUDE_COMMANDS.filter(
+      (c) => c.name.toLowerCase().includes(q) || c.description.toLowerCase().includes(q)
+    )
+  }, [search])
 
   const builtins = filtered.filter((t) => t.category === 'builtin')
   const customs = filtered.filter((t) => t.category === 'custom')
@@ -78,7 +122,7 @@ export function TemplatePicker({ open, onClose, onSelect }: TemplatePickerProps)
   if (!open) return null
 
   return (
-    <div className="absolute bottom-full left-0 right-0 mb-1 z-20">
+    <div ref={containerRef} className="absolute bottom-full left-0 right-0 mb-1 z-20">
       <div className="bg-bg-surface border border-border rounded-xl shadow-2xl overflow-hidden animate-slide-in-up max-h-[400px]">
         {showCreate ? (
           <CreateTemplate
@@ -113,11 +157,19 @@ export function TemplatePicker({ open, onClose, onSelect }: TemplatePickerProps)
               </Button>
             </div>
 
-            {/* Template list */}
+            {/* Commands + Template list */}
             <div className="max-h-[300px] overflow-y-auto custom-scrollbar py-1">
+              {filteredCommands.length > 0 && (
+                <>
+                  <div className="px-3 pt-2 pb-1 text-2xs font-medium text-text-muted uppercase tracking-wider">Claude Commands</div>
+                  {filteredCommands.map((c) => (
+                    <CommandRow key={c.id} command={c} onClick={() => { onSelect(c.name); onClose() }} />
+                  ))}
+                </>
+              )}
               {builtins.length > 0 && (
                 <>
-                  <div className="px-3 pt-2 pb-1 text-2xs font-medium text-text-muted uppercase tracking-wider">Built-in</div>
+                  <div className="px-3 pt-2 pb-1 text-2xs font-medium text-text-muted uppercase tracking-wider">Templates</div>
                   {builtins.map((t) => (
                     <TemplateRow key={t.id} template={t} onClick={() => handleSelectTemplate(t)} />
                   ))}
@@ -125,7 +177,7 @@ export function TemplatePicker({ open, onClose, onSelect }: TemplatePickerProps)
               )}
               {customs.length > 0 && (
                 <>
-                  <div className="px-3 pt-2 pb-1 text-2xs font-medium text-text-muted uppercase tracking-wider">Custom</div>
+                  <div className="px-3 pt-2 pb-1 text-2xs font-medium text-text-muted uppercase tracking-wider">Custom Templates</div>
                   {customs.map((t) => (
                     <TemplateRow
                       key={t.id}
@@ -136,9 +188,9 @@ export function TemplatePicker({ open, onClose, onSelect }: TemplatePickerProps)
                   ))}
                 </>
               )}
-              {filtered.length === 0 && (
+              {filtered.length === 0 && filteredCommands.length === 0 && (
                 <div className="px-3 py-6 text-center text-xs text-text-muted">
-                  No templates found
+                  No commands or templates found
                 </div>
               )}
             </div>
@@ -146,6 +198,21 @@ export function TemplatePicker({ open, onClose, onSelect }: TemplatePickerProps)
         )}
       </div>
     </div>
+  )
+}
+
+function CommandRow({ command, onClick }: { command: { name: string; description: string }; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-bg-elevated transition-colors"
+    >
+      <Terminal className="w-3.5 h-3.5 text-success flex-shrink-0" />
+      <div className="min-w-0">
+        <div className="text-xs text-text-primary font-mono">{command.name}</div>
+        <div className="text-2xs text-text-muted truncate">{command.description}</div>
+      </div>
+    </button>
   )
 }
 
