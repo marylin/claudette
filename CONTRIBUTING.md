@@ -23,13 +23,28 @@ See `CLAUDE.md` for the full architecture breakdown, design system, and build or
 - **Match the design system** — colors, spacing, and fonts are defined in `tailwind.config.js`
 - **One PR = one feature** — keep it focused
 
+## Before Submitting
+
+```bash
+npx tsc -p tsconfig.main.json    # TypeScript check
+npx vite build                   # Renderer build
+npm test                         # Unit tests
+```
+
+All three must pass.
+
 ## Submitting a PR
 
 1. Fork the repo
 2. Create a branch: `git checkout -b feature/my-feature`
 3. Make your changes
-4. Run `npm run typecheck` — must pass
-5. Open a PR with a clear description
+4. Run the checks above — all must pass
+5. Open a PR with a clear description (use the PR template)
+
+## Labels
+
+- `good-first-issue` — great for newcomers
+- `help-wanted` — we'd love community help here
 
 ## Reporting Bugs
 
