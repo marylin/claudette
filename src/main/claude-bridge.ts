@@ -6,6 +6,11 @@ import type { ClaudeStatus } from '../shared/types'
 
 let claudeProcess: ChildProcess | null = null
 let currentStatus: ClaudeStatus = { status: 'idle' }
+let currentSessionId: string | null = null
+
+// Track streamed text so we can emit only new deltas
+let lastEmittedTextLength = 0
+let lastEmittedToolIds = new Set<string>()
 
 // Slash commands handled entirely in the app (never sent to CLI)
 type LocalCommandHandler = () => { output: string; action?: 'clear' }
@@ -35,13 +40,13 @@ const LOCAL_COMMANDS: Record<string, LocalCommandHandler> = {
 
 // Slash commands mapped to CLI subcommands/flags (spawned differently than -p)
 interface CliCommandMapping {
-  args: string[]  // CLI arguments to use instead of -p
-  needsProject?: boolean
+  args: string[]
+  useStreamJson?: boolean  // some subcommands don't support --output-format
 }
 
 const CLI_COMMANDS: Record<string, CliCommandMapping> = {
-  '/doctor':  { args: ['doctor'] },
-  '/config':  { args: ['config', 'list'] },
+  '/doctor':  { args: ['doctor'], useStreamJson: false },
+  '/config':  { args: ['config', 'list'], useStreamJson: false },
   '/cost':    { args: ['-p', 'Show my token usage and cost for this session'] },
   '/status':  { args: ['-p', 'Show a brief project status summary'] },
   '/compact': { args: ['-p', 'Summarize our conversation so far in a compact form'] },
@@ -83,15 +88,16 @@ export function sendMessage(message: string, sessionId?: string): void {
   }
 
   let args: string[]
+  let useStreamJson = true
 
   if (cliMapping) {
-    // Use the mapped CLI arguments
     args = [...cliMapping.args]
+    useStreamJson = cliMapping.useStreamJson !== false
     if (settings.autoAcceptPermissions) {
       args.push('--dangerously-skip-permissions')
     }
   } else {
-    // Normal message: flags first, positional message last
+    // Normal message: use -p with stream-json for real-time output
     args = ['-p']
 
     if (settings.autoAcceptPermissions) {
@@ -106,11 +112,21 @@ export function sendMessage(message: string, sessionId?: string): void {
     args.push(trimmed)
   }
 
-  spawnClaude(claudePath, args)
+  // Add stream-json output format for real-time streaming
+  if (useStreamJson) {
+    args.unshift('--output-format', 'stream-json')
+  }
+
+  spawnClaude(claudePath, args, useStreamJson)
 }
 
-function spawnClaude(claudePath: string, args: string[]): void {
+function spawnClaude(claudePath: string, args: string[], parseJson: boolean): void {
   const isWin = process.platform === 'win32'
+
+  // Reset streaming state
+  lastEmittedTextLength = 0
+  lastEmittedToolIds = new Set()
+  currentSessionId = null
 
   if (isWin) {
     claudeProcess = spawn('cmd', ['/c', claudePath, ...args], {
@@ -128,40 +144,55 @@ function spawnClaude(claudePath: string, args: string[]): void {
   const stdout = createInterface({ input: claudeProcess.stdout! })
   const stderr = createInterface({ input: claudeProcess.stderr! })
 
-  let outputBuffer = ''
-  let flushTimer: NodeJS.Timeout | null = null
+  // For non-stream-json mode, buffer output like before
+  let rawBuffer = ''
+  let rawFlushTimer: NodeJS.Timeout | null = null
 
-  function flushOutput() {
-    if (outputBuffer) {
-      sendOutput(outputBuffer, 'stdout')
-      outputBuffer = ''
+  function flushRawBuffer() {
+    if (rawBuffer) {
+      sendOutput(rawBuffer, 'stdout')
+      rawBuffer = ''
     }
-    flushTimer = null
+    rawFlushTimer = null
   }
 
   stdout.on('line', (line) => {
+    if (!line.trim()) return
+
+    if (parseJson) {
+      // Try to parse as stream-json event
+      try {
+        const event = JSON.parse(line)
+        handleStreamEvent(event)
+        return
+      } catch {
+        // Not JSON — permission prompt or other raw output
+      }
+    }
+
+    // Raw line handling (non-JSON or fallback)
     if (isPermissionPrompt(line)) {
-      flushOutput()
+      if (rawFlushTimer) { clearTimeout(rawFlushTimer); flushRawBuffer() }
       updateStatus({ status: 'waiting-permission', message: line })
       sendOutput(line, 'system')
       return
     }
 
-    outputBuffer += (outputBuffer ? '\n' : '') + line
-
-    if (!flushTimer) {
-      flushTimer = setTimeout(flushOutput, 16)
+    rawBuffer += (rawBuffer ? '\n' : '') + line
+    if (!rawFlushTimer) {
+      rawFlushTimer = setTimeout(flushRawBuffer, 16)
     }
   })
 
   stderr.on('line', (line) => {
+    if (!line.trim()) return
     sendOutput(line, 'stderr')
   })
 
   claudeProcess.on('close', (code) => {
-    if (flushTimer) {
-      clearTimeout(flushTimer)
-      flushOutput()
+    if (rawFlushTimer) {
+      clearTimeout(rawFlushTimer)
+      flushRawBuffer()
     }
 
     claudeProcess = null
@@ -176,6 +207,114 @@ function spawnClaude(claudePath: string, args: string[]): void {
     updateStatus({ status: 'error', message: err.message })
     sendOutput(`Error: ${err.message}`, 'system')
   })
+}
+
+/**
+ * Handle a parsed stream-json event from the Claude CLI.
+ *
+ * Event types:
+ * - system (subtype: init) — session start, contains session_id
+ * - assistant — contains message.content blocks (text, tool_use, thinking)
+ * - result — final result, session complete
+ */
+function handleStreamEvent(event: any): void {
+  if (!event || !event.type) return
+
+  switch (event.type) {
+    case 'system': {
+      if (event.subtype === 'init' && event.session_id) {
+        currentSessionId = event.session_id
+      }
+      break
+    }
+
+    case 'assistant': {
+      const content = event.message?.content
+      if (!Array.isArray(content)) break
+
+      // Extract all text from content blocks
+      let fullText = ''
+      for (const block of content) {
+        if (block.type === 'text') {
+          fullText += block.text || ''
+        } else if (block.type === 'thinking') {
+          // Could surface thinking separately if needed
+        } else if (block.type === 'tool_use') {
+          // Emit tool use events as system messages (once per tool call)
+          const toolId = block.id || `${block.name}-${Date.now()}`
+          if (!lastEmittedToolIds.has(toolId)) {
+            lastEmittedToolIds.add(toolId)
+            const toolName = block.name || 'unknown'
+            const toolInput = block.input || {}
+            const summary = summarizeToolUse(toolName, toolInput)
+            sendOutput(summary, 'system')
+          }
+        }
+      }
+
+      // Emit only the NEW text (delta since last emit)
+      if (fullText.length > lastEmittedTextLength) {
+        const delta = fullText.slice(lastEmittedTextLength)
+        sendOutput(delta, 'stdout')
+        lastEmittedTextLength = fullText.length
+      }
+      break
+    }
+
+    case 'result': {
+      // The result event signals completion
+      // If there's a result text we haven't emitted yet, emit it
+      if (event.result && typeof event.result === 'string') {
+        if (lastEmittedTextLength === 0) {
+          // We never got assistant events — emit the final result directly
+          sendOutput(event.result, 'stdout')
+        }
+      }
+
+      if (event.subtype === 'error') {
+        const errText = event.error || event.result || 'Unknown error'
+        sendOutput(`Error: ${errText}`, 'system')
+      }
+
+      // Capture session ID from result if we missed it earlier
+      if (event.session_id && !currentSessionId) {
+        currentSessionId = event.session_id
+      }
+      break
+    }
+  }
+}
+
+/**
+ * Create a human-readable summary of a tool use event.
+ */
+function summarizeToolUse(name: string, input: any): string {
+  switch (name) {
+    case 'Read':
+    case 'read':
+      return `📄 Reading ${input.file_path || input.path || 'file'}...`
+    case 'Write':
+    case 'write':
+      return `✏️ Writing ${input.file_path || input.path || 'file'}...`
+    case 'Edit':
+    case 'edit':
+      return `📝 Editing ${input.file_path || input.path || 'file'}...`
+    case 'Bash':
+    case 'bash':
+      return `💻 Running: \`${truncate(input.command || input.cmd || '', 80)}\``
+    case 'Glob':
+    case 'glob':
+      return `🔍 Searching for ${input.pattern || 'files'}...`
+    case 'Grep':
+    case 'grep':
+      return `🔍 Searching for "${truncate(input.pattern || '', 40)}"...`
+    default:
+      return `🔧 Using tool: ${name}`
+  }
+}
+
+function truncate(s: string, max: number): string {
+  return s.length > max ? s.slice(0, max) + '...' : s
 }
 
 export function stopClaude(): void {
@@ -194,6 +333,10 @@ export function stopClaude(): void {
 
 export function getClaudeStatus(): ClaudeStatus {
   return currentStatus
+}
+
+export function getCurrentSessionId(): string | null {
+  return currentSessionId
 }
 
 function sendOutput(text: string, type: 'stdout' | 'stderr' | 'system'): void {
