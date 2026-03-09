@@ -3,6 +3,43 @@
 
 ---
 
+## Autonomous Context Management
+
+When working on this project, follow these rules to survive context limits:
+
+### Progress Tracking
+- **Progress file**: `docs/05-Plans/claudette-full-progress.md` — single source of truth
+- **Plan file**: `docs/05-Plans/claudette-full-plan.md` — all tasks by phase with IDs
+- Update progress file after every committed phase (mark `[x]`, update "Current State" and "Next Steps" at top)
+
+### Auto-Resume Protocol
+When starting a new session or after `/compact`:
+1. Read ONLY the top of `docs/05-Plans/claudette-full-progress.md` (Current State + Next Steps)
+2. Read the plan file ONLY for the next incomplete phase's task details
+3. Do NOT re-read completed task code — trust the progress file
+4. Continue from the next `[ ]` or `[~]` task
+5. Never ask what to do — the progress file tells you
+
+### Context Preservation on Limit
+When context reaches ~80%:
+1. Finish the current task (don't leave half-written files)
+2. Run build verification: `npx tsc -p tsconfig.main.json && npx vite build`
+3. Commit all work: `git add -A && git commit -m "feat(phase): description"`
+4. Update progress file with exact state and next task number
+5. Commit the progress file
+6. Run `/compact` then immediately resume — do NOT ask the user anything
+
+### Build Verification
+Always verify after each phase: `npx tsc -p tsconfig.main.json 2>&1 && npx vite build 2>&1 | tail -5`
+Both must pass before committing. Fix errors before moving on.
+
+### Commit Pattern
+- After each phase: `feat(scope): implement Phase X.Y — description`
+- After progress update: `docs: update progress — Phase X.Y complete`
+- Never commit broken builds to master
+
+---
+
 ## What We're Building
 
 **Claudette** is an Electron + React desktop app that wraps the Claude Code CLI in a beautiful, polished GUI. It targets Windows developers who have Claude Code installed but hate the terminal-only experience. It must be the best Claude Code GUI on GitHub — better UX than Opcode, easier setup than CodePilot, and more complete than claudecodeui.
