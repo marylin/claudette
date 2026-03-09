@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { MessageSquare, ArrowDown } from 'lucide-react'
+import { MessageSquare, ArrowDown, AlertTriangle, RefreshCw } from 'lucide-react'
 import { useClaudeBridge } from '../../hooks/useClaudeBridge'
 import { useAppStore } from '../../store/app.store'
 import { useSessionStore } from '../../store/session.store'
@@ -12,6 +12,7 @@ import { useState } from 'react'
 export function ChatPanel() {
   const { sendMessage, stopClaude, isStreaming, messages } = useClaudeBridge()
   const activeProject = useAppStore((s) => s.activeProject)
+  const claudeStatus = useAppStore((s) => s.claudeStatus)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [showScrollButton, setShowScrollButton] = useState(false)
   const isAutoScrolling = useRef(true)
@@ -53,6 +54,22 @@ export function ChatPanel() {
 
   return (
     <div className="flex flex-col h-full">
+      {/* Claude crash banner */}
+      {claudeStatus.status === 'error' && (
+        <div className="px-4 py-2 bg-error-muted border-b border-error/30 flex items-center gap-2 shrink-0">
+          <AlertTriangle className="w-3.5 h-3.5 text-error flex-shrink-0" />
+          <span className="text-xs text-error flex-1">
+            {claudeStatus.message || 'Claude stopped unexpectedly'}
+          </span>
+          <button
+            onClick={() => sendMessage('')}
+            className="flex items-center gap-1 text-2xs text-error hover:text-text-primary transition-colors"
+          >
+            <RefreshCw className="w-3 h-3" /> Restart
+          </button>
+        </div>
+      )}
+
       {/* Messages area */}
       <div
         ref={scrollRef}
