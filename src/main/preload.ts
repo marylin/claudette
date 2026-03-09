@@ -56,6 +56,20 @@ const electronAPI = {
   removeMcpServer: (name: string, scope: string, projectPath?: string) => ipcRenderer.invoke('mcp:remove', name, scope, projectPath),
   toggleMcpServer: (name: string, scope: string, enabled: boolean, projectPath?: string) => ipcRenderer.invoke('mcp:toggle', name, scope, enabled, projectPath),
 
+  // Workspaces
+  listWorkspaces: () => ipcRenderer.invoke('workspaces:list'),
+  createWorkspace: (name: string, projectPaths?: string[]) => ipcRenderer.invoke('workspaces:create', name, projectPaths),
+  updateWorkspace: (id: string, updates: unknown) => ipcRenderer.invoke('workspaces:update', id, updates),
+  deleteWorkspace: (id: string) => ipcRenderer.invoke('workspaces:delete', id),
+  addProjectToWorkspace: (workspaceId: string, projectPath: string) => ipcRenderer.invoke('workspaces:add-project', workspaceId, projectPath),
+  removeProjectFromWorkspace: (workspaceId: string, projectPath: string) => ipcRenderer.invoke('workspaces:remove-project', workspaceId, projectPath),
+
+  // Checkpoints
+  listCheckpoints: (sessionId?: string) => ipcRenderer.invoke('checkpoints:list', sessionId),
+  createCheckpoint: (data: unknown) => ipcRenderer.invoke('checkpoints:create', data),
+  deleteCheckpoint: (id: string) => ipcRenderer.invoke('checkpoints:delete', id),
+  getCheckpoint: (id: string) => ipcRenderer.invoke('checkpoints:get', id),
+
   // Auto-updater
   checkForUpdates: () => ipcRenderer.invoke('updater:check'),
   downloadUpdate: () => ipcRenderer.invoke('updater:download'),

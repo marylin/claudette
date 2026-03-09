@@ -10,7 +10,9 @@ import { getUsageData } from './usage-analyzer'
 import { listMcpServers, addMcpServer, removeMcpServer, toggleMcpServer } from './mcp-manager'
 import { listTemplates, saveTemplate, deleteTemplate, resolveTemplate } from './template-manager'
 import { checkForUpdates, downloadUpdate, installUpdate, getUpdateStatus } from './auto-updater'
-import type { Agent, FileNode } from '../shared/types'
+import { listWorkspaces, createWorkspace, updateWorkspace, deleteWorkspace, addProjectToWorkspace, removeProjectFromWorkspace } from './workspace-manager'
+import { listCheckpoints, createCheckpoint, deleteCheckpoint, getCheckpoint } from './checkpoint-manager'
+import type { Agent, FileNode, Workspace } from '../shared/types'
 
 const IGNORED_DIRS = new Set([
   'node_modules', '.git', 'dist', '.next', '__pycache__',
@@ -130,6 +132,20 @@ export function registerIpcHandlers(ipcMain: IpcMain): void {
   ipcMain.handle('settings:set', (_event, partial: Record<string, unknown>) => {
     return updateSettings(partial as any)
   })
+
+  // Workspaces
+  ipcMain.handle('workspaces:list', () => listWorkspaces())
+  ipcMain.handle('workspaces:create', (_event, name: string, projectPaths?: string[]) => createWorkspace(name, projectPaths))
+  ipcMain.handle('workspaces:update', (_event, id: string, updates: Partial<Workspace>) => updateWorkspace(id, updates))
+  ipcMain.handle('workspaces:delete', (_event, id: string) => deleteWorkspace(id))
+  ipcMain.handle('workspaces:add-project', (_event, workspaceId: string, projectPath: string) => addProjectToWorkspace(workspaceId, projectPath))
+  ipcMain.handle('workspaces:remove-project', (_event, workspaceId: string, projectPath: string) => removeProjectFromWorkspace(workspaceId, projectPath))
+
+  // Checkpoints
+  ipcMain.handle('checkpoints:list', (_event, sessionId?: string) => listCheckpoints(sessionId))
+  ipcMain.handle('checkpoints:create', (_event, data: any) => createCheckpoint(data))
+  ipcMain.handle('checkpoints:delete', (_event, id: string) => deleteCheckpoint(id))
+  ipcMain.handle('checkpoints:get', (_event, id: string) => getCheckpoint(id))
 
   // Auto-updater
   ipcMain.handle('updater:check', () => checkForUpdates())

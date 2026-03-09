@@ -6,6 +6,7 @@ import { useProjectStore } from '../../store/project.store'
 import { useSessionStore } from '../../store/session.store'
 import { EmptyState } from '../shared/EmptyState'
 import { Button } from '../shared/Button'
+import { WorkspaceBar } from './WorkspaceBar'
 import { formatDistanceToNow } from 'date-fns'
 import type { Project, Session } from '@shared/types'
 
@@ -95,6 +96,9 @@ export function Sidebar() {
           </button>
         </div>
       </div>
+
+      {/* Workspace tabs */}
+      <WorkspaceBar />
 
       {/* Project list */}
       <div className="flex-1 overflow-y-auto py-1">

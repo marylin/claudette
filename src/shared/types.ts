@@ -100,6 +100,25 @@ export interface ClaudeStatus {
   message?: string
 }
 
+export interface Workspace {
+  id: string
+  name: string
+  projectPaths: string[]
+  activeProjectPath: string | null
+  createdAt: Date
+}
+
+export interface Checkpoint {
+  id: string
+  sessionId: string
+  projectPath: string
+  name: string
+  description?: string
+  timestamp: Date
+  messageIndex: number
+  gitRef?: string
+}
+
 export type IpcChannels = {
   // Claude process
   'claude:send': (message: string, sessionId?: string) => void

@@ -7,6 +7,7 @@ import { MessageBubble } from './MessageBubble'
 import { ChatInput } from './ChatInput'
 import { StreamingIndicator } from './StreamingIndicator'
 import { EmptyState } from '../shared/EmptyState'
+import { CheckpointPanel } from './CheckpointPanel'
 import { useState } from 'react'
 
 export function ChatPanel() {
@@ -69,6 +70,9 @@ export function ChatPanel() {
           </button>
         </div>
       )}
+
+      {/* Checkpoints */}
+      <CheckpointPanel />
 
       {/* Messages area */}
       <div
