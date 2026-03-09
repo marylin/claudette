@@ -11,6 +11,7 @@ import { AgentsPanel } from './components/agents/AgentsPanel'
 import { UsagePanel } from './components/analytics/UsagePanel'
 import { SettingsPanel } from './components/shared/SettingsPanel'
 import { CommandPalette } from './components/shared/CommandPalette'
+import { KeyboardShortcuts } from './components/shared/KeyboardShortcuts'
 import { useAppStore, type TabId } from './store/app.store'
 
 function MainPanel() {
@@ -40,11 +41,21 @@ export default function App() {
   const toggleTerminal = useAppStore((s) => s.toggleTerminal)
   const setSettings = useAppStore((s) => s.setSettings)
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
+
+  const settings = useAppStore((s) => s.settings)
 
   // Load settings on mount
   useEffect(() => {
     window.electronAPI.getSettings().then(setSettings)
   }, [setSettings])
+
+  // Apply font size setting to root
+  useEffect(() => {
+    if (settings?.fontSize) {
+      document.documentElement.style.fontSize = `${settings.fontSize}px`
+    }
+  }, [settings?.fontSize])
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -82,6 +93,16 @@ export default function App() {
           return
         }
       }
+
+      // ? key (no modifier) for keyboard shortcuts help
+      if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const target = e.target as HTMLElement
+        const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable
+        if (!isInput) {
+          e.preventDefault()
+          setShortcutsOpen((o) => !o)
+        }
+      }
     }
 
     window.addEventListener('keydown', handleKeyDown)
@@ -108,6 +129,7 @@ export default function App() {
       <StatusBar />
       {settingsOpen && <SettingsPanel />}
       <CommandPalette open={commandPaletteOpen} onClose={() => setCommandPaletteOpen(false)} />
+      <KeyboardShortcuts open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
     </div>
   )
 }
