@@ -50,7 +50,7 @@ export function Onboarding() {
         {/* Logo */}
         <div className="flex items-center gap-3 mb-8">
           <div className="w-10 h-10 rounded-lg bg-accent flex items-center justify-center">
-            <span className="text-lg font-bold text-white">C</span>
+            <span className="text-lg font-bold text-text-primary">C</span>
           </div>
           <div>
             <h1 className="text-xl font-bold text-text-primary">Claudette</h1>
@@ -141,7 +141,7 @@ function StepCard({
       <div className="flex items-center gap-2 mb-2">
         <div
           className={`w-5 h-5 rounded-full flex items-center justify-center text-2xs font-bold ${
-            done ? 'bg-success text-bg-base' : active ? 'bg-accent text-white' : 'bg-bg-elevated text-text-muted'
+            done ? 'bg-success text-bg-base' : active ? 'bg-accent text-text-primary' : 'bg-bg-elevated text-text-muted'
           }`}
         >
           {done ? <CheckCircle className="w-3 h-3" /> : number}

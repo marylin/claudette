@@ -39,10 +39,10 @@ export function CommitPanel({ files, onStage, onUnstage, onCommit }: CommitPanel
         <span className="text-text-muted">{stagedFiles.length} staged / {unstagedFiles.length} unstaged</span>
         <div className="flex gap-1">
           {unstagedFiles.length > 0 && (
-            <button onClick={handleStageAll} className="text-accent hover:text-accent-hover">Stage all</button>
+            <button onClick={handleStageAll} className="text-accent hover:text-accent-hover transition-colors duration-100">Stage all</button>
           )}
           {stagedFiles.length > 0 && (
-            <button onClick={handleUnstageAll} className="text-text-muted hover:text-text-primary">Unstage all</button>
+            <button onClick={handleUnstageAll} className="text-text-muted hover:text-text-primary transition-colors duration-100">Unstage all</button>
           )}
         </div>
       </div>

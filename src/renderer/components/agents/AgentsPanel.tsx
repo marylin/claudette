@@ -13,8 +13,12 @@ export function AgentsPanel() {
   const { toast } = useToast()
 
   const refresh = async () => {
-    const list = await window.electronAPI.listAgents()
-    setAgents(list)
+    try {
+      const list = await window.electronAPI.listAgents()
+      setAgents(list)
+    } catch (err) {
+      toast('error', 'Failed to load agents')
+    }
     setLoading(false)
   }
 
@@ -23,26 +27,34 @@ export function AgentsPanel() {
   const handleSave = async () => {
     if (!editing?.name) return
     const isNew = !editing.id
-    await window.electronAPI.saveAgent({
-      id: editing.id || `agent-${Date.now()}`,
-      name: editing.name,
-      description: editing.description || '',
-      systemPrompt: editing.systemPrompt || '',
-      model: editing.model || 'claude-sonnet-4-5',
-      allowedTools: editing.allowedTools || [],
-      createdAt: editing.createdAt || new Date(),
-      updatedAt: new Date(),
-    } as Agent)
-    toast('success', `Agent "${editing.name}" ${isNew ? 'created' : 'updated'}`)
-    setEditing(null)
-    refresh()
+    try {
+      await window.electronAPI.saveAgent({
+        id: editing.id || `agent-${Date.now()}`,
+        name: editing.name,
+        description: editing.description || '',
+        systemPrompt: editing.systemPrompt || '',
+        model: editing.model || 'claude-sonnet-4-5',
+        allowedTools: editing.allowedTools || [],
+        createdAt: editing.createdAt || new Date(),
+        updatedAt: new Date(),
+      } as Agent)
+      toast('success', `Agent "${editing.name}" ${isNew ? 'created' : 'updated'}`)
+      setEditing(null)
+      refresh()
+    } catch (err) {
+      toast('error', `Failed to save agent: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    }
   }
 
   const handleDelete = async (id: string) => {
     const agent = agents.find((a) => a.id === id)
-    await window.electronAPI.deleteAgent(id)
-    toast('info', `Agent "${agent?.name || id}" deleted`)
-    refresh()
+    try {
+      await window.electronAPI.deleteAgent(id)
+      toast('info', `Agent "${agent?.name || id}" deleted`)
+      refresh()
+    } catch (err) {
+      toast('error', `Failed to delete agent: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    }
   }
 
   if (editing) {

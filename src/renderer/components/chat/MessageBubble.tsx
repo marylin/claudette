@@ -102,7 +102,7 @@ const MarkdownContent = memo(function MarkdownContent({ content }: { content: st
         strong: ({ children }) => <strong className="font-semibold text-text-primary">{children}</strong>,
         em: ({ children }) => <em className="italic">{children}</em>,
         a: ({ href, children }) => (
-          <a href={href} className="text-accent hover:text-accent-hover underline" target="_blank" rel="noopener noreferrer">
+          <a href={href} className="text-accent hover:text-accent-hover underline transition-colors duration-100" target="_blank" rel="noopener noreferrer">
             {children}
           </a>
         ),

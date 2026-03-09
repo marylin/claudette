@@ -70,7 +70,7 @@ export function CodeViewer({ filePath, content }: CodeViewerProps) {
         <table className="w-full border-collapse">
           <tbody>
             {lines.map((line, idx) => (
-              <tr key={idx} className="hover:bg-bg-elevated/50">
+              <tr key={idx} className="hover:bg-bg-elevated/50 transition-colors duration-100">
                 <td className="text-right px-3 py-0 text-2xs text-text-muted select-none w-12 align-top font-mono border-r border-border/50">
                   {idx + 1}
                 </td>

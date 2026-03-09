@@ -46,7 +46,7 @@ export function TerminalPanel() {
             black: '#0d0f12',
             brightBlack: '#4b5263',
             white: '#f1f3f8',
-            brightWhite: '#ffffff',
+            brightWhite: '#f1f3f8',
             blue: '#60a5fa',
             brightBlue: '#93bbfc',
             cyan: '#22d3ee',

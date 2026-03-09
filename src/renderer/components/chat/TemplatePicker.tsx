@@ -28,7 +28,7 @@ export function TemplatePicker({ open, onClose, onSelect }: TemplatePickerProps)
 
   useEffect(() => {
     if (open) {
-      window.electronAPI.listTemplates().then(setTemplates)
+      window.electronAPI.listTemplates().then(setTemplates).catch(() => toast('error', 'Failed to load templates'))
       setSearch('')
       setSelected(null)
       setShowCreate(false)
@@ -55,16 +55,24 @@ export function TemplatePicker({ open, onClose, onSelect }: TemplatePickerProps)
 
   const handleUse = async () => {
     if (!selected) return
-    const resolved = await window.electronAPI.resolveTemplate(selected.prompt, variables)
-    onSelect(resolved)
-    onClose()
+    try {
+      const resolved = await window.electronAPI.resolveTemplate(selected.prompt, variables)
+      onSelect(resolved)
+      onClose()
+    } catch (err) {
+      toast('error', 'Failed to resolve template')
+    }
   }
 
   const handleDelete = async (id: string) => {
-    await window.electronAPI.deleteTemplate(id)
-    toast('info', 'Template deleted')
-    setTemplates((prev) => prev.filter((t) => t.id !== id))
-    if (selected?.id === id) setSelected(null)
+    try {
+      await window.electronAPI.deleteTemplate(id)
+      toast('info', 'Template deleted')
+      setTemplates((prev) => prev.filter((t) => t.id !== id))
+      if (selected?.id === id) setSelected(null)
+    } catch (err) {
+      toast('error', 'Failed to delete template')
+    }
   }
 
   if (!open) return null
@@ -76,7 +84,7 @@ export function TemplatePicker({ open, onClose, onSelect }: TemplatePickerProps)
           <CreateTemplate
             onSave={() => {
               setShowCreate(false)
-              window.electronAPI.listTemplates().then(setTemplates)
+              window.electronAPI.listTemplates().then(setTemplates).catch(() => {})
             }}
             onCancel={() => setShowCreate(false)}
           />
@@ -166,7 +174,7 @@ function TemplateRow({
       {onDelete && (
         <button
           onClick={(e) => { e.stopPropagation(); onDelete() }}
-          className="px-2 opacity-0 group-hover:opacity-100 text-text-muted hover:text-error transition-all"
+          className="px-2 opacity-0 group-hover:opacity-100 text-text-muted hover:text-error transition-all duration-100"
           aria-label="Delete template"
         >
           <Trash2 className="w-3 h-3" />
@@ -242,15 +250,19 @@ function CreateTemplate({
   const handleSave = async () => {
     if (!name.trim() || !prompt.trim()) return
     setSaving(true)
-    await window.electronAPI.saveTemplate({
-      id: `custom-${Date.now()}`,
-      name: name.trim(),
-      description: description.trim(),
-      prompt: prompt.trim(),
-    })
-    toast('success', `Template "${name}" created`)
+    try {
+      await window.electronAPI.saveTemplate({
+        id: `custom-${Date.now()}`,
+        name: name.trim(),
+        description: description.trim(),
+        prompt: prompt.trim(),
+      })
+      toast('success', `Template "${name}" created`)
+      onSave()
+    } catch (err) {
+      toast('error', 'Failed to save template')
+    }
     setSaving(false)
-    onSave()
   }
 
   return (

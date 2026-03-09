@@ -59,7 +59,7 @@ export function TokenChart({ daily }: TokenChartProps) {
             onClick={() => setRange(r)}
             className={`px-2.5 py-1 text-2xs rounded-md transition-colors ${
               range === r
-                ? 'bg-accent text-white'
+                ? 'bg-accent text-text-primary'
                 : 'text-text-secondary hover:text-text-primary hover:bg-bg-elevated'
             }`}
           >
@@ -88,7 +88,7 @@ export function TokenChart({ daily }: TokenChartProps) {
           />
           <Tooltip
             content={<CustomTooltip />}
-            cursor={{ fill: '#ffffff08' }}
+            cursor={{ fill: '#7c6af708' }}
           />
           <Legend
             wrapperStyle={{ fontSize: 11, paddingTop: 8 }}

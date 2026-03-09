@@ -15,7 +15,7 @@ export function TitleBar() {
       {/* App title */}
       <div className="flex items-center gap-2 pl-3">
         <div className="w-4 h-4 rounded bg-accent flex items-center justify-center">
-          <span className="text-[9px] font-bold text-white leading-none">C</span>
+          <span className="text-[9px] font-bold text-text-primary leading-none">C</span>
         </div>
         <span className="text-xs font-medium text-text-secondary">Claudette</span>
       </div>
@@ -38,7 +38,7 @@ export function TitleBar() {
         </button>
         <button
           onClick={() => window.electronAPI.closeWindow()}
-          className="h-title-bar w-11 flex items-center justify-center text-text-muted hover:text-white hover:bg-error transition-colors"
+          className="h-title-bar w-11 flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-error transition-colors"
           aria-label="Close"
         >
           <X className="w-3.5 h-3.5" />

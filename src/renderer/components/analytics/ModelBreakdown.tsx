@@ -77,7 +77,7 @@ export function ModelBreakdown({ byModel, totalCost }: ModelBreakdownProps) {
             {/* Cost bar */}
             <div className="mx-2 h-1 bg-bg-elevated rounded-full overflow-hidden">
               <div
-                className="h-full rounded-full transition-all duration-300"
+                className="h-full rounded-full transition-all duration-100"
                 style={{
                   width: `${Math.max(share, 1)}%`,
                   backgroundColor: color,

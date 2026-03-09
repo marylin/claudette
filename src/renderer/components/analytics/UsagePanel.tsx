@@ -10,13 +10,17 @@ export function UsagePanel() {
   const [usage, setUsage] = useState<UsageData | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const fetchUsage = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true)
+    setError(null)
     try {
       const data = await window.electronAPI.getUsage()
       setUsage(data)
     } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to load usage data'
+      setError(msg)
       console.error('Failed to fetch usage:', err)
     } finally {
       setLoading(false)
@@ -35,6 +39,19 @@ export function UsagePanel() {
           <RefreshCw className="w-4 h-4 animate-spin-slow" />
           Analyzing sessions...
         </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <EmptyState
+          icon={<BarChart3 className="w-10 h-10" />}
+          title="Failed to load usage data"
+          description={error}
+          action={{ label: 'Retry', onClick: () => fetchUsage() }}
+        />
       </div>
     )
   }

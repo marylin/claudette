@@ -151,6 +151,9 @@ function ProjectItem({
       window.electronAPI.listSessions(project.path).then((s: Session[]) => {
         setSessions(s)
         setLoadingSessions(false)
+      }).catch(() => {
+        setSessions([])
+        setLoadingSessions(false)
       })
     }
   }, [isExpanded, project.path])
@@ -209,6 +212,10 @@ function ProjectItem({
 
           {loadingSessions && (
             <div className="px-2 py-1 text-2xs text-text-muted">Loading sessions...</div>
+          )}
+
+          {!loadingSessions && sessions.length === 0 && (
+            <div className="px-2 py-2 text-2xs text-text-muted">No previous sessions</div>
           )}
 
           {sessions.slice(0, 10).map((session) => (

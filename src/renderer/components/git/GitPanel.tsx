@@ -37,8 +37,13 @@ export function GitPanel() {
   const handleSelectFile = async (file: GitFile) => {
     if (!activeProject) return
     setSelectedFile(file.path)
-    const d = await window.electronAPI.getGitDiff(activeProject.path, file.path)
-    setDiff(d)
+    try {
+      const d = await window.electronAPI.getGitDiff(activeProject.path, file.path)
+      setDiff(d)
+    } catch {
+      setDiff('')
+      toast('error', `Failed to load diff for ${file.path}`)
+    }
   }
 
   const handleStage = async (files: string[]) => {
@@ -110,7 +115,7 @@ export function GitPanel() {
             <button
               key={file.path}
               onClick={() => handleSelectFile(file)}
-              className={`w-full px-3 py-1 flex items-center gap-2 text-xs text-left transition-colors ${
+              className={`w-full px-3 py-1 flex items-center gap-2 text-xs text-left transition-colors duration-100 ${
                 selectedFile === file.path ? 'bg-accent/10 text-text-primary' : 'text-text-secondary hover:bg-bg-elevated'
               }`}
             >

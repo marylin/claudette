@@ -116,7 +116,7 @@ export function ChatInput({ onSend, onStop, isStreaming, disabled }: ChatInputPr
             className={clsx(
               'shrink-0 w-8 h-8 flex items-center justify-center rounded-lg transition-colors',
               value.trim() && !disabled
-                ? 'bg-accent text-white hover:bg-accent-hover'
+                ? 'bg-accent text-text-primary hover:bg-accent-hover'
                 : 'bg-bg-elevated text-text-muted cursor-not-allowed'
             )}
             aria-label="Send"
