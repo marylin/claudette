@@ -1,6 +1,7 @@
 import { MessageSquare, FolderTree, GitBranch, Bot, BarChart3 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useAppStore, type TabId } from '../../store/app.store'
+import { Tooltip } from '../shared/Tooltip'
 
 interface Tab {
   id: TabId
@@ -24,23 +25,23 @@ export function TabBar() {
   return (
     <div className="h-tab-bar bg-bg-surface border-b border-border flex items-end px-2 gap-0.5 shrink-0" role="tablist">
       {tabs.map((tab) => (
-        <button
-          key={tab.id}
-          role="tab"
-          aria-selected={activeTab === tab.id}
-          aria-label={`${tab.label} (${tab.shortcut})`}
-          onClick={() => setActiveTab(tab.id)}
-          className={clsx(
-            'flex items-center gap-1.5 px-3 h-[34px] text-xs font-medium rounded-t-md transition-colors relative',
-            activeTab === tab.id
-              ? 'bg-bg-base text-text-primary border-t border-x border-border border-b-transparent -mb-px'
-              : 'text-text-muted hover:text-text-secondary hover:bg-bg-elevated/50'
-          )}
-          title={tab.shortcut}
-        >
-          {tab.icon}
-          {tab.label}
-        </button>
+        <Tooltip key={tab.id} content={tab.shortcut} side="bottom">
+          <button
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            aria-label={`${tab.label} (${tab.shortcut})`}
+            onClick={() => setActiveTab(tab.id)}
+            className={clsx(
+              'flex items-center gap-1.5 px-3 h-[34px] text-xs font-medium rounded-t-md transition-colors relative',
+              activeTab === tab.id
+                ? 'bg-bg-base text-text-primary border-t border-x border-border border-b-transparent -mb-px'
+                : 'text-text-muted hover:text-text-secondary hover:bg-bg-elevated/50'
+            )}
+          >
+            {tab.icon}
+            {tab.label}
+          </button>
+        </Tooltip>
       ))}
     </div>
   )

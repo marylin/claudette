@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Terminal, Settings, Github } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useAppStore } from '../../store/app.store'
+import { Tooltip } from '../shared/Tooltip'
 
 export function StatusBar() {
   const claudeStatus = useAppStore((s) => s.claudeStatus)
@@ -49,34 +50,37 @@ export function StatusBar() {
       {/* Right: GitHub + Terminal toggle */}
       <div className="flex items-center gap-3">
         {repoUrl && (
-          <button
-            onClick={() => window.open(repoUrl, '_blank')}
-            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-text-muted hover:text-text-secondary transition-colors"
-            title="Open on GitHub"
-          >
-            <Github className="w-3 h-3" />
-          </button>
+          <Tooltip content="Open on GitHub">
+            <button
+              onClick={() => window.open(repoUrl, '_blank')}
+              className="flex items-center gap-1 px-1.5 py-0.5 rounded text-text-muted hover:text-text-secondary transition-colors"
+            >
+              <Github className="w-3 h-3" />
+            </button>
+          </Tooltip>
         )}
-        <button
-          onClick={toggleTerminal}
-          className={clsx(
-            'flex items-center gap-1 px-1.5 py-0.5 rounded transition-colors',
-            terminalVisible
-              ? 'text-accent bg-accent/10'
-              : 'text-text-muted hover:text-text-secondary'
-          )}
-          title="Toggle terminal (Ctrl+`)"
-        >
-          <Terminal className="w-3 h-3" />
-          <span>Terminal</span>
-        </button>
-        <button
-          onClick={() => setSettingsOpen(true)}
-          className="flex items-center gap-1 px-1.5 py-0.5 rounded text-text-muted hover:text-text-secondary transition-colors"
-          title="Settings"
-        >
-          <Settings className="w-3 h-3" />
-        </button>
+        <Tooltip content="Toggle terminal (Ctrl+`)">
+          <button
+            onClick={toggleTerminal}
+            className={clsx(
+              'flex items-center gap-1 px-1.5 py-0.5 rounded transition-colors',
+              terminalVisible
+                ? 'text-accent bg-accent/10'
+                : 'text-text-muted hover:text-text-secondary'
+            )}
+          >
+            <Terminal className="w-3 h-3" />
+            <span>Terminal</span>
+          </button>
+        </Tooltip>
+        <Tooltip content="Settings">
+          <button
+            onClick={() => setSettingsOpen(true)}
+            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-text-muted hover:text-text-secondary transition-colors"
+          >
+            <Settings className="w-3 h-3" />
+          </button>
+        </Tooltip>
       </div>
     </div>
   )

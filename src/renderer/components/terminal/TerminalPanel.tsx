@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
-import { Maximize2, Minimize2, X } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { X } from 'lucide-react'
 import { useAppStore } from '../../store/app.store'
+import { ResizeHandle } from '../shared/ResizeHandle'
 
 export function TerminalPanel() {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -9,9 +10,6 @@ export function TerminalPanel() {
   const [initialized, setInitialized] = useState(false)
   const [height, setHeight] = useState(200)
   const setTerminalVisible = useAppStore((s) => s.setTerminalVisible)
-  const isDragging = useRef(false)
-  const startY = useRef(0)
-  const startHeight = useRef(0)
 
   // Lazy load xterm.js
   useEffect(() => {
@@ -104,35 +102,13 @@ export function TerminalPanel() {
     }
   }, [height, initialized])
 
-  // Drag resize handle
-  const handleMouseDown = (e: React.MouseEvent) => {
-    isDragging.current = true
-    startY.current = e.clientY
-    startHeight.current = height
-
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging.current) return
-      const delta = startY.current - e.clientY
-      setHeight(Math.max(100, Math.min(600, startHeight.current + delta)))
-    }
-
-    const handleMouseUp = () => {
-      isDragging.current = false
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
-    }
-
-    document.addEventListener('mousemove', handleMouseMove)
-    document.addEventListener('mouseup', handleMouseUp)
-  }
+  const handleResize = useCallback((delta: number) => {
+    setHeight((h) => Math.max(100, Math.min(600, h - delta)))
+  }, [])
 
   return (
     <div style={{ height }}>
-      {/* Resize handle */}
-      <div
-        onMouseDown={handleMouseDown}
-        className="h-1 cursor-ns-resize hover:bg-accent/30 transition-colors"
-      />
+      <ResizeHandle direction="vertical" onResize={handleResize} />
 
       {/* Header */}
       <div className="h-7 px-3 flex items-center justify-between bg-bg-surface">

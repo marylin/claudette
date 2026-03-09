@@ -12,6 +12,7 @@ import { UsagePanel } from './components/analytics/UsagePanel'
 import { SettingsPanel } from './components/shared/SettingsPanel'
 import { CommandPalette } from './components/shared/CommandPalette'
 import { KeyboardShortcuts } from './components/shared/KeyboardShortcuts'
+import { TooltipProvider } from './components/shared/Tooltip'
 import { useAppStore, type TabId } from './store/app.store'
 
 function MainPanel() {
@@ -110,26 +111,28 @@ export default function App() {
   }, [setActiveTab, toggleSidebar, toggleTerminal])
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-bg-base">
-      <TitleBar />
-      <div className="flex flex-1 min-h-0">
-        <Sidebar />
-        <div className="flex flex-col flex-1 min-w-0">
-          <TabBar />
-          <div className="flex-1 min-h-0 overflow-hidden relative">
-            <MainPanel />
-          </div>
-          {terminalVisible && (
-            <div className="border-t border-border">
-              <TerminalPanel />
+    <TooltipProvider>
+      <div className="flex flex-col h-screen w-screen bg-bg-base">
+        <TitleBar />
+        <div className="flex flex-1 min-h-0">
+          <Sidebar />
+          <div className="flex flex-col flex-1 min-w-0">
+            <TabBar />
+            <div className="flex-1 min-h-0 overflow-hidden relative">
+              <MainPanel />
             </div>
-          )}
+            {terminalVisible && (
+              <div className="border-t border-border">
+                <TerminalPanel />
+              </div>
+            )}
+          </div>
         </div>
+        <StatusBar />
+        {settingsOpen && <SettingsPanel />}
+        <CommandPalette open={commandPaletteOpen} onClose={() => setCommandPaletteOpen(false)} />
+        <KeyboardShortcuts open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       </div>
-      <StatusBar />
-      {settingsOpen && <SettingsPanel />}
-      <CommandPalette open={commandPaletteOpen} onClose={() => setCommandPaletteOpen(false)} />
-      <KeyboardShortcuts open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
-    </div>
+    </TooltipProvider>
   )
 }
