@@ -76,3 +76,23 @@
     app-region: no-drag;
   }
 }
+
+/* Reduced motion: disable animations for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Focus visible: keyboard-only focus ring */
+:focus-visible {
+  outline: 2px solid #7c6af7;
+  outline-offset: 1px;
+  border-radius: 4px;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}

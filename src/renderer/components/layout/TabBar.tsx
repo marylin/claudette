@@ -22,10 +22,13 @@ export function TabBar() {
   const setActiveTab = useAppStore((s) => s.setActiveTab)
 
   return (
-    <div className="h-tab-bar bg-bg-surface border-b border-border flex items-end px-2 gap-0.5 shrink-0">
+    <div className="h-tab-bar bg-bg-surface border-b border-border flex items-end px-2 gap-0.5 shrink-0" role="tablist">
       {tabs.map((tab) => (
         <button
           key={tab.id}
+          role="tab"
+          aria-selected={activeTab === tab.id}
+          aria-label={`${tab.label} (${tab.shortcut})`}
           onClick={() => setActiveTab(tab.id)}
           className={clsx(
             'flex items-center gap-1.5 px-3 h-[34px] text-xs font-medium rounded-t-md transition-colors relative',
