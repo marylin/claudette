@@ -1,0 +1,32 @@
+title: "[Show] "
+labels: ["show-and-tell"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Built something cool with Claudette? Share it here — setups, workflows, screenshots, tips, anything.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What are you sharing?
+      description: Tell us what you built, configured, or discovered.
+      placeholder: "I set up Claudette with..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots or demo
+      description: Drag in screenshots, GIFs, or a link to a video.
+    validations:
+      required: false
+
+  - type: textarea
+    id: details
+    attributes:
+      label: How it works
+      description: Any setup steps, config, or tips that others might find useful.
+    validations:
+      required: false

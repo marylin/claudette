@@ -1,0 +1,65 @@
+title: "[Q] "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Stuck on something? Ask here — the community and maintainers will help.
+
+  - type: textarea
+    id: question
+    attributes:
+      label: What's your question?
+      description: Be as specific as you can — include what you've already tried.
+      placeholder: "How do I..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of Claudette does this relate to?
+      options:
+        - Installation / setup
+        - Claude CLI connection
+        - Chat / conversation
+        - File explorer
+        - Git panel
+        - Terminal
+        - CLAUDE.md editor
+        - Agents
+        - Settings / configuration
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Claudette version
+      description: Found in Settings or the title bar.
+      placeholder: "v0.1.0"
+    validations:
+      required: false
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows 11
+        - Windows 10
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Linux
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Logs, screenshots, or anything else that might help.
+    validations:
+      required: false

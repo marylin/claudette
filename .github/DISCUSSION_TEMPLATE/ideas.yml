@@ -1,0 +1,61 @@
+title: "[Idea] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea that would make Claudette better? We'd love to hear it.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What's the idea?
+      description: Describe your feature or improvement in a few sentences.
+      placeholder: "I'd love it if Claudette could..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of Claudette does this relate to?
+      options:
+        - Chat / conversation
+        - File explorer
+        - Git panel
+        - Terminal
+        - CLAUDE.md editor
+        - Agents
+        - Usage / analytics
+        - Settings / configuration
+        - UI / design
+        - Performance
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Why would this be useful? What workflow does it improve?
+      placeholder: "Right now I have to... but it would be faster if..."
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Have you tried any workarounds or seen this done elsewhere?
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Mockups or references
+      description: Drag in any screenshots, sketches, or links to similar features.
+    validations:
+      required: false
