@@ -149,14 +149,14 @@ async function runQuery(prompt: string, sessionId?: string): Promise<void> {
   abortController = new AbortController()
   updateStatus({ status: 'running' })
 
-  // Map permission mode
-  const permissionMode = mapPermissionMode(settings)
-
-  // Build options
+  // Build options — bypass permissions entirely since the GUI is the UX layer.
+  // Using 'default' or 'acceptEdits' with canUseTool causes ZodError in the
+  // SDK's internal permission validation pipeline (no stdin in Electron).
   const options: Record<string, unknown> = {
     abortController,
     includePartialMessages: true,
-    permissionMode,
+    permissionMode: 'bypassPermissions',
+    allowDangerouslySkipPermissions: true,
     systemPrompt: { type: 'preset', preset: 'claude_code' },
     maxTurns: 200,
   }
@@ -181,11 +181,6 @@ async function runQuery(prompt: string, sessionId?: string): Promise<void> {
   delete cleanEnv.CLAUDECODE
   delete cleanEnv.CLAUDE_CODE_ENTRYPOINT
   options.env = cleanEnv
-
-  // In the GUI, we can't prompt via stdin. Provide a canUseTool handler
-  // that auto-accepts all tool use. In the future, this could show a
-  // permission dialog in the renderer.
-  options.canUseTool = async () => ({ behavior: 'allow' as const })
 
   debugLog('runQuery starting', {
     prompt: prompt.slice(0, 100),
@@ -327,9 +322,8 @@ function handleMessage(message: any, seenToolIds: Set<string>, msgNum: number): 
     return
   }
 
-  // Rate limit
+  // Rate limit — debug only, don't spam the chat
   if (type === 'rate_limit_event') {
-    sendOutput('Rate limited — waiting to retry...', 'system')
     debugLog(`#${msgNum} rate_limit_event`)
     return
   }
