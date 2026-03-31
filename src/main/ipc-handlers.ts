@@ -1,7 +1,7 @@
 import { IpcMain, dialog } from 'electron'
 import fs from 'fs'
 import path from 'path'
-import { sendMessage, stopClaude } from './claude-bridge'
+import { sendMessage, stopClaude, sendMessageWithAgent } from './claude-bridge'
 import { listProjects, listSessions, deleteSession } from './session-manager'
 import { getSettings, updateSettings } from './settings'
 import {
@@ -105,7 +105,12 @@ export function registerIpcHandlers(ipcMain: IpcMain): void {
   ipcMain.handle('agents:list', () => listAgents())
   ipcMain.handle('agents:save', (_event, agent: Agent) => saveAgent(agent))
   ipcMain.handle('agents:delete', (_event, agentId: string) => deleteAgent(agentId))
-  ipcMain.handle('agents:run', (_event, _agentId: string, _prompt: string) => {})
+  ipcMain.handle('agents:run', async (_event, agentId: string, prompt: string) => {
+    const agents = listAgents()
+    const agent = agents.find((a) => a.id === agentId)
+    if (!agent) throw new Error(`Agent not found: ${agentId}`)
+    sendMessageWithAgent(agent.systemPrompt, prompt)
+  })
 
   // CLAUDE.md
   ipcMain.handle('claude-md:read', (_event, projectPath: string) => {

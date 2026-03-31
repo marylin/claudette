@@ -95,6 +95,15 @@ export function sendMessage(message: string, sessionId?: string): void {
   })
 }
 
+export function sendMessageWithAgent(
+  agentSystemPrompt: string,
+  prompt: string,
+  sessionId?: string
+): void {
+  const fullPrompt = `[System instructions for this agent]\n${agentSystemPrompt}\n\n[User prompt]\n${prompt}`
+  sendMessage(fullPrompt, sessionId)
+}
+
 export function stopClaude(): void {
   if (claudeProcess) {
     if (process.platform === 'win32') {
@@ -136,5 +145,5 @@ function isPermissionPrompt(line: string): boolean {
     /\[Y\/n\]/i,
     /\[y\/N\]/i,
   ]
-  return patterns.some(p => p.test(line))
+  return patterns.some((p) => p.test(line))
 }
