@@ -22,11 +22,14 @@ export function UpdateBanner() {
       setStatus(s)
       setDismissed(false) // Show banner again on new state
     })
-    return () => cleanup?.()
+    return () => {
+      cleanup?.()
+    }
   }, [])
 
   if (dismissed) return null
-  if (status.state === 'idle' || status.state === 'checking' || status.state === 'not-available') return null
+  if (status.state === 'idle' || status.state === 'checking' || status.state === 'not-available')
+    return null
 
   if (status.state === 'error') return null // Silently ignore update errors
 
@@ -70,11 +73,7 @@ export function UpdateBanner() {
           <span className="text-text-primary">
             Update <strong>{status.info?.version}</strong> ready — restart to apply
           </span>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => window.electronAPI?.installUpdate?.()}
-          >
+          <Button variant="primary" size="sm" onClick={() => window.electronAPI?.installUpdate?.()}>
             Restart Now
           </Button>
         </>

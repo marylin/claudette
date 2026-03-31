@@ -7,7 +7,9 @@ export function TitleBar() {
   useEffect(() => {
     window.electronAPI.isMaximized().then(setIsMaximized)
     const cleanup = window.electronAPI.onMaximizeChange(setIsMaximized)
-    return cleanup
+    return () => {
+      cleanup()
+    }
   }, [])
 
   return (
