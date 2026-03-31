@@ -1,11 +1,20 @@
 # Claudette Full Implementation — Progress
 
 ## Current State
-All phases COMPLETE. Build passes, 39 unit tests pass. Only remaining: code signing (needs certificate) and launch assets (banner/demo).
+All phases COMPLETE. Audit fixes applied (2026-03-31). Build passes, 41 unit tests pass. Only remaining: code signing (needs certificate) and launch assets (banner/demo).
 
 ## Next Steps
 - [ ] Code signing (task 109) — requires purchasing certificate
 - [ ] Launch assets (tasks 113-117) — banner image, demo video, PH/HN copy
+
+## Audit Fixes (2026-03-31) [COMPLETE]
+[x] Install react-is (recharts peer dep) — Committed: 82d5183
+[x] Fix ESLint config (remove nonexistent rule) — included in 82d5183
+[x] Fix 3 TypeScript errors (MessageBubble, TitleBar, UpdateBanner) — Committed: 00d28fc
+[x] Delete dead-code stubs (AgentCard, AgentEditor) — Committed: 9b87a03
+[x] Implement sessions:delete handler + tests — Committed: 1c1bb20
+[x] Implement agents:run handler — Committed: c58850c
+[x] Upgrade CodeViewer to Monaco — Committed: 9b1e320
 
 ## Phase 0.1 — Core Shell [COMPLETE]
 [x] 1–38. All tasks complete. Committed: 3394a01

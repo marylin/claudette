@@ -20,9 +20,8 @@ export function listProjects(): Project[] {
       const decodedPath = decodeProjectDirName(entry.name)
       const sessions = listSessionsForPath(projectDir)
 
-      const lastSession = sessions.length > 0
-        ? sessions.reduce((a, b) => (a.updatedAt > b.updatedAt ? a : b))
-        : null
+      const lastSession =
+        sessions.length > 0 ? sessions.reduce((a, b) => (a.updatedAt > b.updatedAt ? a : b)) : null
 
       projects.push({
         id: entry.name,
@@ -69,6 +68,17 @@ export function listSessions(projectPath: string): Session[] {
   }
 }
 
+export function deleteSession(projectDir: string, sessionId: string): void {
+  const sessionFile = path.join(projectDir, `${sessionId}.jsonl`)
+  try {
+    if (fs.existsSync(sessionFile)) {
+      fs.unlinkSync(sessionFile)
+    }
+  } catch (err) {
+    console.error('Failed to delete session:', err)
+  }
+}
+
 function listSessionsForPath(projectDir: string): Session[] {
   const sessions: Session[] = []
 
@@ -106,9 +116,8 @@ function parseSessionFile(filePath: string): Session | null {
         messageCount++
 
         if (entry.role === 'user' && !summary) {
-          const text = typeof entry.content === 'string'
-            ? entry.content
-            : entry.content?.[0]?.text || ''
+          const text =
+            typeof entry.content === 'string' ? entry.content : entry.content?.[0]?.text || ''
           summary = text.slice(0, 120)
         }
 

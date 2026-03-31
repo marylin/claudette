@@ -47,7 +47,9 @@ export const MessageBubble = memo(function MessageBubble({ message }: MessageBub
             </span>
           )}
           <div className="bg-accent/15 border border-accent/20 rounded-lg px-3 py-2">
-            <p className="text-sm text-text-primary whitespace-pre-wrap select-text">{message.content}</p>
+            <p className="text-sm text-text-primary whitespace-pre-wrap select-text">
+              {message.content}
+            </p>
           </div>
           <div className="w-6 h-6 rounded-md bg-accent/20 flex items-center justify-center shrink-0 mt-0.5">
             <User className="w-3.5 h-3.5 text-accent" />
@@ -88,59 +90,77 @@ export const MessageBubble = memo(function MessageBubble({ message }: MessageBub
 
 const MarkdownContent = memo(function MarkdownContent({ content }: { content: string }) {
   return (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      className="prose prose-invert prose-sm max-w-none"
-      components={{
-        p: ({ children }) => <p className="text-sm text-text-primary mb-2 last:mb-0">{children}</p>,
-        h1: ({ children }) => <h1 className="text-lg font-bold text-text-primary mb-2">{children}</h1>,
-        h2: ({ children }) => <h2 className="text-md font-semibold text-text-primary mb-1.5">{children}</h2>,
-        h3: ({ children }) => <h3 className="text-sm font-semibold text-text-primary mb-1">{children}</h3>,
-        ul: ({ children }) => <ul className="list-disc pl-4 mb-2 space-y-0.5">{children}</ul>,
-        ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 space-y-0.5">{children}</ol>,
-        li: ({ children }) => <li className="text-sm text-text-primary">{children}</li>,
-        strong: ({ children }) => <strong className="font-semibold text-text-primary">{children}</strong>,
-        em: ({ children }) => <em className="italic">{children}</em>,
-        a: ({ href, children }) => (
-          <a href={href} className="text-accent hover:text-accent-hover underline transition-colors duration-100" target="_blank" rel="noopener noreferrer">
-            {children}
-          </a>
-        ),
-        code: ({ className, children, ...props }) => {
-          const isInline = !className
-          if (isInline) {
-            return (
-              <code className="px-1 py-0.5 bg-bg-elevated rounded text-xs font-mono text-accent">
-                {children}
-              </code>
-            )
-          }
-          const language = className?.replace('language-', '') || ''
-          return <CodeBlock language={language}>{String(children).replace(/\n$/, '')}</CodeBlock>
-        },
-        blockquote: ({ children }) => (
-          <blockquote className="border-l-2 border-accent/50 pl-3 text-text-secondary italic mb-2">
-            {children}
-          </blockquote>
-        ),
-        table: ({ children }) => (
-          <div className="overflow-x-auto mb-2">
-            <table className="w-full text-sm border border-border rounded">{children}</table>
-          </div>
-        ),
-        th: ({ children }) => (
-          <th className="text-left px-2 py-1 bg-bg-elevated border-b border-border text-xs font-medium text-text-secondary">
-            {children}
-          </th>
-        ),
-        td: ({ children }) => (
-          <td className="px-2 py-1 border-b border-border/50 text-xs text-text-primary">{children}</td>
-        ),
-        hr: () => <hr className="border-border my-3" />,
-      }}
-    >
-      {content}
-    </ReactMarkdown>
+    <div className="prose prose-invert prose-sm max-w-none">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          p: ({ children }) => (
+            <p className="text-sm text-text-primary mb-2 last:mb-0">{children}</p>
+          ),
+          h1: ({ children }) => (
+            <h1 className="text-lg font-bold text-text-primary mb-2">{children}</h1>
+          ),
+          h2: ({ children }) => (
+            <h2 className="text-md font-semibold text-text-primary mb-1.5">{children}</h2>
+          ),
+          h3: ({ children }) => (
+            <h3 className="text-sm font-semibold text-text-primary mb-1">{children}</h3>
+          ),
+          ul: ({ children }) => <ul className="list-disc pl-4 mb-2 space-y-0.5">{children}</ul>,
+          ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 space-y-0.5">{children}</ol>,
+          li: ({ children }) => <li className="text-sm text-text-primary">{children}</li>,
+          strong: ({ children }) => (
+            <strong className="font-semibold text-text-primary">{children}</strong>
+          ),
+          em: ({ children }) => <em className="italic">{children}</em>,
+          a: ({ href, children }) => (
+            <a
+              href={href}
+              className="text-accent hover:text-accent-hover underline transition-colors duration-100"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {children}
+            </a>
+          ),
+          code: ({ className, children, ...props }) => {
+            const isInline = !className
+            if (isInline) {
+              return (
+                <code className="px-1 py-0.5 bg-bg-elevated rounded text-xs font-mono text-accent">
+                  {children}
+                </code>
+              )
+            }
+            const language = className?.replace('language-', '') || ''
+            return <CodeBlock language={language}>{String(children).replace(/\n$/, '')}</CodeBlock>
+          },
+          blockquote: ({ children }) => (
+            <blockquote className="border-l-2 border-accent/50 pl-3 text-text-secondary italic mb-2">
+              {children}
+            </blockquote>
+          ),
+          table: ({ children }) => (
+            <div className="overflow-x-auto mb-2">
+              <table className="w-full text-sm border border-border rounded">{children}</table>
+            </div>
+          ),
+          th: ({ children }) => (
+            <th className="text-left px-2 py-1 bg-bg-elevated border-b border-border text-xs font-medium text-text-secondary">
+              {children}
+            </th>
+          ),
+          td: ({ children }) => (
+            <td className="px-2 py-1 border-b border-border/50 text-xs text-text-primary">
+              {children}
+            </td>
+          ),
+          hr: () => <hr className="border-border my-3" />,
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
   )
 })
 

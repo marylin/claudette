@@ -3,9 +3,8 @@ import path from 'path'
 import fs from 'fs'
 import os from 'os'
 
-
 // Import after mocking
-const { listProjects, listSessions } = await import('../../src/main/session-manager')
+const { listProjects, listSessions, deleteSession } = await import('../../src/main/session-manager')
 
 const TEST_HOME = path.join(os.tmpdir(), 'claudette-test-sm')
 
@@ -26,10 +25,7 @@ function createTempProject(name: string, sessions: { id: string; lines: string[]
   const projectDir = path.join(PROJECTS_DIR, name)
   fs.mkdirSync(projectDir, { recursive: true })
   for (const session of sessions) {
-    fs.writeFileSync(
-      path.join(projectDir, `${session.id}.jsonl`),
-      session.lines.join('\n') + '\n'
-    )
+    fs.writeFileSync(path.join(projectDir, `${session.id}.jsonl`), session.lines.join('\n') + '\n')
   }
   return projectDir
 }
@@ -134,11 +130,7 @@ describe('session-manager', () => {
       createTempProject('broken-project', [
         {
           id: 'broken-session',
-          lines: [
-            'not json',
-            JSON.stringify({ role: 'user', content: 'Valid line' }),
-            '{broken',
-          ],
+          lines: ['not json', JSON.stringify({ role: 'user', content: 'Valid line' }), '{broken'],
         },
       ])
 
@@ -162,7 +154,11 @@ describe('session-manager', () => {
         {
           id: 'usage-session',
           lines: [
-            JSON.stringify({ role: 'user', content: 'Test', usage: { input_tokens: 10, output_tokens: 20 } }),
+            JSON.stringify({
+              role: 'user',
+              content: 'Test',
+              usage: { input_tokens: 10, output_tokens: 20 },
+            }),
           ],
         },
       ])
@@ -170,6 +166,30 @@ describe('session-manager', () => {
       const sessions = listSessions('usage-project')
       expect(sessions.length).toBe(1)
       expect(sessions[0].tokenCount).toBe(30)
+    })
+  })
+
+  describe('deleteSession', () => {
+    it('deletes a session file by project dir and session id', () => {
+      const projectDir = createTempProject('test-delete-proj', [
+        { id: 'session-keep', lines: ['{"role":"user","content":"keep"}'] },
+        { id: 'session-remove', lines: ['{"role":"user","content":"remove"}'] },
+      ])
+
+      deleteSession(projectDir, 'session-remove')
+
+      // Verify the file is actually deleted
+      const files = fs.readdirSync(projectDir)
+      expect(files).toContain('session-keep.jsonl')
+      expect(files).not.toContain('session-remove.jsonl')
+    })
+
+    it('does not throw when session file does not exist', () => {
+      const projectDir = createTempProject('test-delete-missing', [
+        { id: 'only-session', lines: ['{"role":"user","content":"hi"}'] },
+      ])
+
+      expect(() => deleteSession(projectDir, 'nonexistent')).not.toThrow()
     })
   })
 })

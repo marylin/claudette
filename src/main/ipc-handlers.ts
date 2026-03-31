@@ -1,22 +1,51 @@
 import { IpcMain, dialog } from 'electron'
 import fs from 'fs'
 import path from 'path'
-import { sendMessage, stopClaude } from './claude-bridge'
-import { listProjects, listSessions } from './session-manager'
+import { sendMessage, stopClaude, sendMessageWithAgent } from './claude-bridge'
+import { listProjects, listSessions, deleteSession } from './session-manager'
 import { getSettings, updateSettings } from './settings'
-import { getGitStatus, getGitDiff, gitStage, gitUnstage, gitCommit, getGitRemoteUrl, getGitLog } from './git-manager'
+import {
+  getGitStatus,
+  getGitDiff,
+  gitStage,
+  gitUnstage,
+  gitCommit,
+  getGitRemoteUrl,
+  getGitLog,
+} from './git-manager'
 import { listAgents, saveAgent, deleteAgent } from './agents-manager'
 import { getUsageData } from './usage-analyzer'
 import { listMcpServers, addMcpServer, removeMcpServer, toggleMcpServer } from './mcp-manager'
 import { listTemplates, saveTemplate, deleteTemplate, resolveTemplate } from './template-manager'
 import { checkForUpdates, downloadUpdate, installUpdate, getUpdateStatus } from './auto-updater'
-import { listWorkspaces, createWorkspace, updateWorkspace, deleteWorkspace, addProjectToWorkspace, removeProjectFromWorkspace } from './workspace-manager'
-import { listCheckpoints, createCheckpoint, deleteCheckpoint, getCheckpoint } from './checkpoint-manager'
+import {
+  listWorkspaces,
+  createWorkspace,
+  updateWorkspace,
+  deleteWorkspace,
+  addProjectToWorkspace,
+  removeProjectFromWorkspace,
+} from './workspace-manager'
+import {
+  listCheckpoints,
+  createCheckpoint,
+  deleteCheckpoint,
+  getCheckpoint,
+} from './checkpoint-manager'
 import type { Agent, FileNode, Workspace } from '../shared/types'
 
 const IGNORED_DIRS = new Set([
-  'node_modules', '.git', 'dist', '.next', '__pycache__',
-  '.venv', 'venv', '.cache', 'coverage', '.turbo', '.nuxt',
+  'node_modules',
+  '.git',
+  'dist',
+  '.next',
+  '__pycache__',
+  '.venv',
+  'venv',
+  '.cache',
+  'coverage',
+  '.turbo',
+  '.nuxt',
 ])
 
 export function registerIpcHandlers(ipcMain: IpcMain): void {
@@ -43,8 +72,8 @@ export function registerIpcHandlers(ipcMain: IpcMain): void {
     // Resume is handled via claude:send with sessionId
   })
 
-  ipcMain.handle('sessions:delete', (_event, _sessionId: string) => {
-    // TODO: implement session deletion
+  ipcMain.handle('sessions:delete', (_event, sessionId: string, projectDir: string) => {
+    return deleteSession(projectDir, sessionId)
   })
 
   // Git (stubs for Phase 0.2)
@@ -76,7 +105,12 @@ export function registerIpcHandlers(ipcMain: IpcMain): void {
   ipcMain.handle('agents:list', () => listAgents())
   ipcMain.handle('agents:save', (_event, agent: Agent) => saveAgent(agent))
   ipcMain.handle('agents:delete', (_event, agentId: string) => deleteAgent(agentId))
-  ipcMain.handle('agents:run', (_event, _agentId: string, _prompt: string) => {})
+  ipcMain.handle('agents:run', async (_event, agentId: string, prompt: string) => {
+    const agents = listAgents()
+    const agent = agents.find((a) => a.id === agentId)
+    if (!agent) throw new Error(`Agent not found: ${agentId}`)
+    sendMessageWithAgent(agent.systemPrompt, prompt)
+  })
 
   // CLAUDE.md
   ipcMain.handle('claude-md:read', (_event, projectPath: string) => {
@@ -109,15 +143,20 @@ export function registerIpcHandlers(ipcMain: IpcMain): void {
     return removeMcpServer(name, scope as 'global' | 'project', projectPath)
   })
 
-  ipcMain.handle('mcp:toggle', (_event, name: string, scope: string, enabled: boolean, projectPath?: string) => {
-    return toggleMcpServer(name, scope as 'global' | 'project', enabled, projectPath)
-  })
+  ipcMain.handle(
+    'mcp:toggle',
+    (_event, name: string, scope: string, enabled: boolean, projectPath?: string) => {
+      return toggleMcpServer(name, scope as 'global' | 'project', enabled, projectPath)
+    }
+  )
 
   // Templates
   ipcMain.handle('templates:list', () => listTemplates())
   ipcMain.handle('templates:save', (_event, template: any) => saveTemplate(template))
   ipcMain.handle('templates:delete', (_event, id: string) => deleteTemplate(id))
-  ipcMain.handle('templates:resolve', (_event, prompt: string, variables: Record<string, string>) => resolveTemplate(prompt, variables))
+  ipcMain.handle('templates:resolve', (_event, prompt: string, variables: Record<string, string>) =>
+    resolveTemplate(prompt, variables)
+  )
 
   // Usage
   ipcMain.handle('usage:get', () => {
@@ -135,11 +174,19 @@ export function registerIpcHandlers(ipcMain: IpcMain): void {
 
   // Workspaces
   ipcMain.handle('workspaces:list', () => listWorkspaces())
-  ipcMain.handle('workspaces:create', (_event, name: string, projectPaths?: string[]) => createWorkspace(name, projectPaths))
-  ipcMain.handle('workspaces:update', (_event, id: string, updates: Partial<Workspace>) => updateWorkspace(id, updates))
+  ipcMain.handle('workspaces:create', (_event, name: string, projectPaths?: string[]) =>
+    createWorkspace(name, projectPaths)
+  )
+  ipcMain.handle('workspaces:update', (_event, id: string, updates: Partial<Workspace>) =>
+    updateWorkspace(id, updates)
+  )
   ipcMain.handle('workspaces:delete', (_event, id: string) => deleteWorkspace(id))
-  ipcMain.handle('workspaces:add-project', (_event, workspaceId: string, projectPath: string) => addProjectToWorkspace(workspaceId, projectPath))
-  ipcMain.handle('workspaces:remove-project', (_event, workspaceId: string, projectPath: string) => removeProjectFromWorkspace(workspaceId, projectPath))
+  ipcMain.handle('workspaces:add-project', (_event, workspaceId: string, projectPath: string) =>
+    addProjectToWorkspace(workspaceId, projectPath)
+  )
+  ipcMain.handle('workspaces:remove-project', (_event, workspaceId: string, projectPath: string) =>
+    removeProjectFromWorkspace(workspaceId, projectPath)
+  )
 
   // Checkpoints
   ipcMain.handle('checkpoints:list', (_event, sessionId?: string) => listCheckpoints(sessionId))
